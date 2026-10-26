@@ -1,4 +1,4 @@
-﻿{
+{
 	"extends": "../tsconfig.json",
 	"compilerOptions": {
 		"types": ["@cloudflare/workers-types", "@cloudflare/vitest-plugin/types"]

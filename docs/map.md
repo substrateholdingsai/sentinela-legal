@@ -1,4 +1,4 @@
-﻿# Sentinela — Mapa de Construcción, Sprint Control & Control de Versiones
+# Sentinela — Mapa de Construcción, Sprint Control & Control de Versiones
 
 Documento rector del proyecto. Toda decisión de implementación, sprint y versión se traza aquí.
 

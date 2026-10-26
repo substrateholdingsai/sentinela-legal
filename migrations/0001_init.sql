@@ -1,4 +1,4 @@
-﻿CREATE TABLE IF NOT EXISTS regulatory_events (
+CREATE TABLE IF NOT EXISTS regulatory_events (
   id TEXT PRIMARY KEY,
   source TEXT NOT NULL,
   source_url TEXT NOT NULL,
