@@ -1,0 +1,22 @@
+{
+	"name": "sentinela-legal",
+	"version": "0.0.0",
+	"private": true,
+	"scripts": {
+		"deploy": "wrangler deploy",
+		"dev": "wrangler dev",
+		"start": "wrangler dev",
+		"test": "vitest",
+		"cf-typegen": "wrangler types"
+	},
+	"devDependencies": {
+		"@cloudflare/vitest-plugin": "^1.4.3",
+		"@cloudflare/workers-types": "^5.20261026.1",
+		"typescript": "^5.5.2",
+		"vitest": "~5.0.3",
+		"wrangler": "^4"
+	},
+	"dependencies": {
+		"hono": "^4.13.14"
+	}
+}
