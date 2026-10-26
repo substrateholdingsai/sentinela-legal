@@ -1,12 +1,42 @@
 import { Hono } from "hono";
+import type { MiddlewareHandler } from "hono";
 import { createSubscriber, listEvents } from "./lib/db";
 import { runPipeline } from "./pipeline";
 
 const app = new Hono<{ Bindings: Env }>();
 
+export const authMiddleware: MiddlewareHandler<{ Bindings: Env }> = async (c, next) => {
+  const configuredKey = c.env.ADMIN_KEY;
+  if (!configuredKey) {
+    console.warn("[AUTH WARNING] ADMIN_KEY is not configured in environment. Using fallback 'dev-admin-key'.");
+  }
+  const expectedKey = configuredKey ?? "dev-admin-key";
+
+  const authHeader = c.req.header("Authorization");
+  const apiKeyHeader = c.req.header("x-api-key");
+
+  let token: string | undefined;
+  if (authHeader) {
+    const parts = authHeader.split(" ");
+    if (parts.length === 2 && parts[0].toLowerCase() === "bearer") {
+      token = parts[1];
+    } else {
+      token = authHeader;
+    }
+  } else if (apiKeyHeader) {
+    token = apiKeyHeader;
+  }
+
+  if (!token || token !== expectedKey) {
+    return c.json({ error: "Unauthorized: Invalid or missing API key" }, 401);
+  }
+
+  await next();
+};
+
 app.get("/", (c) => c.json({ name: "sentinela", status: "ok" }));
 
-app.post("/api/v1/subscribers", async (c) => {
+app.post("/api/v1/subscribers", authMiddleware, async (c) => {
   const body = await c.req.json<any>();
   if (!body?.name || !body?.email || !Array.isArray(body?.channels)) {
     return c.json({ error: "name, email, channels required" }, 400);
@@ -31,7 +61,7 @@ app.get("/api/v1/events", async (c) => {
   return c.json({ events });
 });
 
-app.post("/api/v1/run", async (c) => {
+app.post("/api/v1/run", authMiddleware, async (c) => {
   const result = await runPipeline(c.env);
   return c.json(result);
 });

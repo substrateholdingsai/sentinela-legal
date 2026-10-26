@@ -6,16 +6,32 @@ import { dispatchEvent } from "./webhook/dispatcher";
 import { generateId } from "./lib/crypto";
 import type { IngestedItem } from "./types";
 
-export async function runPipeline(env: Env): Promise<{ processed: number; skipped: number }> {
+export interface PipelineOptions {
+  maxItems?: number;
+}
+
+export const DEFAULT_MAX_ITEMS = 10;
+
+export async function runPipeline(
+  env: Env,
+  options?: PipelineOptions
+): Promise<{ processed: number; skipped: number }> {
   const kv = env.KV;
   const items: IngestedItem[] = [];
   const dofItems = await ingestDof();
   const satItems = await ingestSat();
   items.push(...dofItems, ...satItems);
 
+  const parsedEnvLimit = env.MAX_PIPELINE_ITEMS ? parseInt(env.MAX_PIPELINE_ITEMS, 10) : NaN;
+  const maxItems = options?.maxItems ?? (!isNaN(parsedEnvLimit) && parsedEnvLimit > 0 ? parsedEnvLimit : DEFAULT_MAX_ITEMS);
+
+  // Apply maximum processing limit to prevent AI quota exhaustion or Worker timeouts
+  const itemsToProcess = items.slice(0, maxItems);
+
   let processed = 0;
   let skipped = 0;
-  for (const item of items) {
+  for (const item of itemsToProcess) {
+    if (processed >= maxItems) break;
     const dedupKey = `seen:${item.source}:${item.source_id}`;
     const seen = await kv.get(dedupKey);
     if (seen) { skipped++; continue; }

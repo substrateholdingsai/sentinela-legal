@@ -1,4 +1,4 @@
-﻿import {
+import {
 	env,
 	createExecutionContext,
 	waitOnExecutionContext,
@@ -6,6 +6,9 @@
 } from "cloudflare:test";
 import { describe, it, expect } from "vitest";
 import worker from "../src/index";
+import { generateId, hmacSha256Hex, sha256Hex } from "../src/lib/crypto";
+import { classifyChannel, parseRssItems } from "../src/ingestors/keywords";
+import { ingestDof } from "../src/ingestors/dof";
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
@@ -23,5 +26,148 @@ describe("Sentinela worker", () => {
 	it("integration health", async () => {
 		const response = await SELF.fetch("https://example.com/");
 		expect(response.status).toBe(200);
+	});
+
+	it("rejects unauthorized access to /api/v1/run", async () => {
+		const request = new IncomingRequest("http://example.com/api/v1/run", {
+			method: "POST",
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+		expect(response.status).toBe(401);
+		const json: any = await response.json();
+		expect(json.error).toContain("Unauthorized");
+	});
+
+	it("rejects unauthorized access to /api/v1/subscribers", async () => {
+		const request = new IncomingRequest("http://example.com/api/v1/subscribers", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ name: "Test", email: "test@example.com", channels: ["fiscal"] }),
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+		expect(response.status).toBe(401);
+	});
+
+	it("authorizes /api/v1/subscribers with Bearer fallback token or ADMIN_KEY", async () => {
+		const request = new IncomingRequest("http://example.com/api/v1/subscribers", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				Authorization: `Bearer ${env.ADMIN_KEY ?? "dev-admin-key"}`,
+			},
+			body: JSON.stringify({}),
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+		// Body validation fails with 400, proving auth passed
+		expect(response.status).toBe(400);
+	});
+
+	it("authorizes /api/v1/subscribers with x-api-key header", async () => {
+		const request = new IncomingRequest("http://example.com/api/v1/subscribers", {
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+				"x-api-key": env.ADMIN_KEY ?? "dev-admin-key",
+			},
+			body: JSON.stringify({}),
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+		expect(response.status).toBe(400);
+	});
+});
+
+describe("Unit tests: Crypto module", () => {
+	it("generates IDs with expected prefix", () => {
+		const id = generateId("reg");
+		expect(id.startsWith("reg_")).toBe(true);
+		expect(id.length).toBeGreaterThan(10);
+	});
+
+	it("computes deterministic SHA-256 hex digest", async () => {
+		const hash = await sha256Hex("hello world");
+		expect(hash).toBe("b94d27b9934d3e08a52e52d7da7dabfac484efe37a5380ee9088f7ace2efcde9");
+	});
+
+	it("computes valid HMAC-SHA-256 signature", async () => {
+		const sig = await hmacSha256Hex("secret-key", "test payload");
+		expect(typeof sig).toBe("string");
+		expect(sig.length).toBe(64);
+	});
+});
+
+describe("Unit tests: Keywords and Classification", () => {
+	it("classifies fiscal texts correctly", () => {
+		expect(classifyChannel("Nueva resolucion miscelanea fiscal del SAT sobre CFDI")).toBe("fiscal");
+	});
+
+	it("classifies cobranza texts correctly", () => {
+		expect(classifyChannel("Normativa CONDUSEF sobre despacho de cobranza y REDECO")).toBe("cobranza");
+	});
+
+	it("classifies fintech_banca texts correctly", () => {
+		expect(classifyChannel("Disposicion de CNBV y BANXICO para prevencion de lavado de dinero PLD")).toBe("fintech_banca");
+	});
+
+	it("classifies laboral texts correctly", () => {
+		expect(classifyChannel("Decreto STPS sobre aumento al salario minimo e IMSS")).toBe("laboral");
+	});
+
+	it("returns null for irrelevant text", () => {
+		expect(classifyChannel("Receta de cocina para pastel de tres leches")).toBeNull();
+	});
+
+	it("parses RSS XML items filtering by keywords", () => {
+		const xml = `
+			<rss><channel>
+				<item>
+					<title><![CDATA[Reglas del SAT para devolucion de impuestos]]></title>
+					<link>https://dof.gob.mx/nota_detalle.php?codigo=123</link>
+					<description><![CDATA[Nuevos requisitos para facturacion electronica]]></description>
+					<guid>dof-123</guid>
+				</item>
+				<item>
+					<title>Aviso no relacionado sobre clima</title>
+					<link>https://dof.gob.mx/nota_detalle.php?codigo=456</link>
+					<description>Pronostico del tiempo</description>
+				</item>
+			</channel></rss>
+		`;
+		const items = parseRssItems(xml, "DOF");
+		expect(items.length).toBe(1);
+		expect(items[0].source_id).toBe("dof-123");
+		expect(items[0].channel_hint).toBe("fiscal");
+		expect(items[0].title).toBe("Reglas del SAT para devolucion de impuestos");
+	});
+});
+
+describe("Unit tests: DOF Ingestor", () => {
+	it("handles mock fetch response and parses items", async () => {
+		const mockXml = `
+			<rss><channel>
+				<item>
+					<title>Acuerdo STPS en materia laboral</title>
+					<link>https://dof.gob.mx/test</link>
+					<description>Lineamientos laborales</description>
+				</item>
+			</channel></rss>
+		`;
+		const mockFetch = (async () => new Response(mockXml, { status: 200 })) as any;
+		const items = await ingestDof(mockFetch);
+		expect(items.length).toBe(1);
+		expect(items[0].channel_hint).toBe("laboral");
+	});
+
+	it("returns empty array on network failure", async () => {
+		const mockFetch = (async () => { throw new Error("Network error"); }) as any;
+		const items = await ingestDof(mockFetch);
+		expect(items).toEqual([]);
 	});
 });
