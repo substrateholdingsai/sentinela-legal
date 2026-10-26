@@ -10,35 +10,75 @@ export interface PipelineOptions {
   maxItems?: number;
 }
 
-export const DEFAULT_MAX_ITEMS = 10;
+const DEFAULT_MAX_ITEMS = 25;
+const CONCURRENCY = 3;
+const ITEM_TIMEOUT_MS = 30000;
+const AI_CACHE_TTL = 60 * 60 * 24 * 30;
+
+async function withTimeout<T>(p: Promise<T>, ms: number): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error("timeout")), ms);
+    p.then((v) => { clearTimeout(t); resolve(v); }).catch((e) => { clearTimeout(t); reject(e); });
+  });
+}
+
+async function runPool<T, R>(items: T[], limit: number, fn: (item: T) => Promise<R>): Promise<R[]> {
+  const results: R[] = [];
+  let i = 0;
+  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
+    while (i < items.length) {
+      const idx = i++;
+      results[idx] = await fn(items[idx]);
+    }
+  });
+  await Promise.all(workers);
+  return results;
+}
 
 export async function runPipeline(
   env: Env,
   options?: PipelineOptions
-): Promise<{ processed: number; skipped: number }> {
+): Promise<{ processed: number; skipped: number; failed: number }> {
   const kv = env.KV;
   const items: IngestedItem[] = [];
   const dofItems = await ingestDof();
   const satItems = await ingestSat();
   items.push(...dofItems, ...satItems);
 
-  const parsedEnvLimit = env.MAX_PIPELINE_ITEMS ? parseInt(env.MAX_PIPELINE_ITEMS, 10) : NaN;
-  const maxItems = options?.maxItems ?? (!isNaN(parsedEnvLimit) && parsedEnvLimit > 0 ? parsedEnvLimit : DEFAULT_MAX_ITEMS);
+  const envLimit = env.MAX_PIPELINE_ITEMS ? parseInt(env.MAX_PIPELINE_ITEMS, 10) : NaN;
+  const maxItems = options?.maxItems ?? (!isNaN(envLimit) && envLimit > 0 ? envLimit : DEFAULT_MAX_ITEMS);
 
-  // Apply maximum processing limit to prevent AI quota exhaustion or Worker timeouts
-  const itemsToProcess = items.slice(0, maxItems);
+  // cap items
+  const capped = items.slice(0, maxItems);
 
   let processed = 0;
   let skipped = 0;
-  for (const item of itemsToProcess) {
-    if (processed >= maxItems) break;
+  let failed = 0;
+
+  await runPool(capped, CONCURRENCY, async (item) => {
     const dedupKey = `seen:${item.source}:${item.source_id}`;
     const seen = await kv.get(dedupKey);
-    if (seen) { skipped++; continue; }
+    if (seen) { skipped++; return; }
     const existing = await getEventBySourceId(env.DB, item.source_id);
-    if (existing) { await kv.put(dedupKey, "1", { expirationTtl: 60 * 60 * 24 * 30 }); skipped++; continue; }
+    if (existing) { await kv.put(dedupKey, "1", { expirationTtl: AI_CACHE_TTL }); skipped++; return; }
 
-    const analysis = await analyzeItem(env.AI, item);
+    // AI cache
+    const aiCacheKey = `ai:${item.source}:${item.source_id}`;
+    let analysis: any = null;
+    const cached = await kv.get(aiCacheKey);
+    if (cached) {
+      try { analysis = JSON.parse(cached); } catch { analysis = null; }
+    }
+    if (!analysis) {
+      try {
+        analysis = await withTimeout(analyzeItem(env.AI, item), ITEM_TIMEOUT_MS);
+        await kv.put(aiCacheKey, JSON.stringify(analysis), { expirationTtl: AI_CACHE_TTL });
+      } catch {
+        failed++;
+        return;
+      }
+    }
+
     const ev = {
       id: generateId("reg"),
       source: item.source,
@@ -56,10 +96,12 @@ export async function runPipeline(
     await insertEvent(env.DB, ev as any);
     const inserted = await getEventBySourceId(env.DB, item.source_id);
     if (inserted) {
-      await dispatchEvent(env, inserted);
+      // dispatch with timeout guard
+      try { await withTimeout(dispatchEvent(env, inserted), 15000); } catch { /* ignore */ }
     }
-    await kv.put(dedupKey, "1", { expirationTtl: 60 * 60 * 24 * 30 });
+    await kv.put(dedupKey, "1", { expirationTtl: AI_CACHE_TTL });
     processed++;
-  }
-  return { processed, skipped };
+  });
+
+  return { processed, skipped, failed };
 }
