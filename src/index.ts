@@ -2,10 +2,22 @@ import { Hono } from "hono";
 import { createSubscriber, listEvents } from "./lib/db";
 import { runPipeline } from "./pipeline";
 import { requireApiKey } from "./lib/auth";
+import { LANDING_HTML } from "./landing/page";
 
 const app = new Hono<{ Bindings: Env }>();
 
-app.get("/", (c) => c.json({ name: "sentinela", status: "ok" }));
+app.get("/", (c) => {
+  const accept = c.req.header("accept") || "";
+  const format = c.req.query("format");
+  if (format === "html" || (accept.includes("text/html") && format !== "json")) {
+    return c.html(LANDING_HTML);
+  }
+  return c.json({ name: "sentinela", status: "ok" });
+});
+
+app.get("/landing", (c) => c.html(LANDING_HTML));
+
+app.get("/health", (c) => c.json({ name: "sentinela", status: "ok" }));
 
 app.use("/api/v1/*", requireApiKey);
 

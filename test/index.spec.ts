@@ -28,6 +28,21 @@ describe("Sentinela worker", () => {
 		expect(response.status).toBe(200);
 	});
 
+	it("serves public 3D landing page when Accept includes text/html or at /landing", async () => {
+		const request = new IncomingRequest("http://example.com/", {
+			headers: { Accept: "text/html,application/xhtml+xml" },
+		});
+		const ctx = createExecutionContext();
+		const response = await worker.fetch(request, env, ctx);
+		await waitOnExecutionContext(ctx);
+		expect(response.status).toBe(200);
+		expect(response.headers.get("content-type")).toContain("text/html");
+		const html = await response.text();
+		expect(html).toContain("pavel@arksystems.site");
+		expect(html).toContain("sentinela-3d-canvas");
+		expect(html).toContain("SENTINELA");
+	});
+
 	it("rejects unauthorized access to /api/v1/run", async () => {
 		const request = new IncomingRequest("http://example.com/api/v1/run", {
 			method: "POST",
