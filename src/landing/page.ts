@@ -380,10 +380,11 @@ export const LANDING_HTML = `<!DOCTYPE html>
       background: var(--bg-surface);
       border: 1px solid var(--border-line);
       border-radius: 8px;
-      height: 500px;
+      height: 520px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
     }
 
     /* Esquinas de mira táctica */
@@ -422,11 +423,13 @@ export const LANDING_HTML = `<!DOCTYPE html>
 
     .viewport-3d__canvas-wrap {
       position: relative;
-      flex: 1;
+      flex: 1 1 auto;
       width: 100%;
-      height: 100%;
+      height: 380px;
+      min-height: 360px;
       cursor: grab;
-      background: radial-gradient(circle at 50% 50%, rgba(22, 32, 58, 0.55) 0%, rgba(7, 10, 17, 0.95) 85%);
+      background: radial-gradient(circle at 50% 50%, rgba(22, 32, 58, 0.75) 0%, rgba(7, 10, 17, 0.98) 85%);
+      overflow: hidden;
     }
 
     .viewport-3d__canvas-wrap:active {
@@ -434,9 +437,13 @@ export const LANDING_HTML = `<!DOCTYPE html>
     }
 
     #sentinela-3d-canvas {
-      width: 100%;
-      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100% !important;
+      height: 100% !important;
       display: block;
+      z-index: 1;
     }
 
     /* HUD Flotante sobre el 3D */
@@ -448,6 +455,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
       display: flex;
       flex-direction: column;
       justify-content: space-between;
+      z-index: 4;
     }
 
     .hud-telemetry {
@@ -458,17 +466,17 @@ export const LANDING_HTML = `<!DOCTYPE html>
     }
 
     .hud-tag {
-      background: rgba(7, 10, 17, 0.82);
+      background: rgba(7, 10, 17, 0.88);
       border: 1px solid var(--border-line);
       border-radius: 6px;
       padding: 6px 10px;
       font: 400 11px/1.4 var(--font-mono);
       color: var(--text-2);
-      backdrop-filter: blur(6px);
+      backdrop-filter: blur(8px);
     }
 
     .hud-live-alert {
-      background: rgba(15, 23, 42, 0.90);
+      background: rgba(15, 23, 42, 0.92);
       border: 1px solid var(--border-strong);
       border-left: 3px solid var(--sev-critical);
       border-radius: 6px;
@@ -1737,30 +1745,31 @@ export const LANDING_HTML = `<!DOCTYPE html>
   </footer>
 
   <!-- ========================================================================
-       MOTOR 3D WEBGL INTERACTIVO (THREE.JS + INTERACTIVIDAD NOC)
+       CARGADOR ROBUSTO MULTI-CDN CON VERIFICACIÓN Y FALLBACK GARANTIZADO
        ======================================================================== -->
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script>
     (function () {
       // 1. Toggle de Tema (Dark NOC / Light Ejecutivo)
-      const themeBtn = document.getElementById('theme-toggle');
-      const htmlEl = document.documentElement;
-      themeBtn.addEventListener('click', () => {
-        const current = htmlEl.getAttribute('data-theme') || 'dark';
-        const next = current === 'dark' ? 'light' : 'dark';
-        htmlEl.setAttribute('data-theme', next);
-        themeBtn.textContent = 'TEMA: ' + next.toUpperCase();
-      });
+      var themeBtn = document.getElementById('theme-toggle');
+      var htmlEl = document.documentElement;
+      if (themeBtn) {
+        themeBtn.addEventListener('click', function () {
+          var current = htmlEl.getAttribute('data-theme') || 'dark';
+          var next = current === 'dark' ? 'light' : 'dark';
+          htmlEl.setAttribute('data-theme', next);
+          themeBtn.textContent = 'TEMA: ' + next.toUpperCase();
+        });
+      }
 
       // 2. Filtro de Tarjetas de Eventos Regulatorios
-      const filterTabs = document.querySelectorAll('.filter-tab');
-      const eventCards = document.querySelectorAll('.event-card');
-      filterTabs.forEach((tab) => {
-        tab.addEventListener('click', () => {
-          filterTabs.forEach((t) => t.classList.remove('active'));
+      var filterTabs = document.querySelectorAll('.filter-tab');
+      var eventCards = document.querySelectorAll('.event-card');
+      filterTabs.forEach(function (tab) {
+        tab.addEventListener('click', function () {
+          filterTabs.forEach(function (t) { t.classList.remove('active'); });
           tab.classList.add('active');
-          const filter = tab.getAttribute('data-filter');
-          eventCards.forEach((card) => {
+          var filter = tab.getAttribute('data-filter');
+          eventCards.forEach(function (card) {
             if (filter === 'all' || card.getAttribute('data-channel') === filter) {
               card.style.display = 'flex';
             } else {
@@ -1771,13 +1780,13 @@ export const LANDING_HTML = `<!DOCTYPE html>
       });
 
       // 3. Selección rápida de plan hacia formulario
-      document.querySelectorAll('[data-plan]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const planName = btn.getAttribute('data-plan');
-          const sel = document.getElementById('lead-plan');
+      document.querySelectorAll('[data-plan]').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          var planName = btn.getAttribute('data-plan');
+          var sel = document.getElementById('lead-plan');
           if (sel && planName) {
-            for (let i = 0; i < sel.options.length; i++) {
-              if (sel.options[i].value.includes(planName)) {
+            for (var i = 0; i < sel.options.length; i++) {
+              if (sel.options[i].value.indexOf(planName) !== -1) {
                 sel.selectedIndex = i;
                 break;
               }
@@ -1787,34 +1796,39 @@ export const LANDING_HTML = `<!DOCTYPE html>
       });
 
       // 4. Copiar correo pavel@arksystems.site
-      const copyBtn = document.getElementById('copy-email-btn');
+      var copyBtn = document.getElementById('copy-email-btn');
       if (copyBtn) {
-        copyBtn.addEventListener('click', async () => {
-          try {
-            await navigator.clipboard.writeText('pavel@arksystems.site');
-            copyBtn.textContent = '✓ COPIADO: pavel@arksystems.site';
-            setTimeout(() => { copyBtn.textContent = 'COPIAR CORREO'; }, 2500);
-          } catch (_) {
+        copyBtn.addEventListener('click', function () {
+          if (navigator.clipboard && navigator.clipboard.writeText) {
+            navigator.clipboard.writeText('pavel@arksystems.site').then(function () {
+              copyBtn.textContent = '✓ COPIADO: pavel@arksystems.site';
+              setTimeout(function () { copyBtn.textContent = 'COPIAR CORREO'; }, 2500);
+            }).catch(function () {
+              window.location.href = 'mailto:pavel@arksystems.site';
+            });
+          } else {
             window.location.href = 'mailto:pavel@arksystems.site';
           }
         });
       }
 
       // 5. Envío de Formulario B2B a pavel@arksystems.site
-      const leadForm = document.getElementById('lead-form');
-      const feedback = document.getElementById('form-feedback');
+      var leadForm = document.getElementById('lead-form');
+      var feedback = document.getElementById('form-feedback');
       if (leadForm) {
-        leadForm.addEventListener('submit', (e) => {
+        leadForm.addEventListener('submit', function (e) {
           e.preventDefault();
-          const name = document.getElementById('lead-name').value.trim();
-          const company = document.getElementById('lead-company').value.trim();
-          const email = document.getElementById('lead-email').value.trim();
-          const plan = document.getElementById('lead-plan').value;
-          const notes = document.getElementById('lead-notes').value.trim();
-          const channels = Array.from(document.querySelectorAll('input[name="channel"]:checked')).map(c => c.value);
+          var name = (document.getElementById('lead-name') || {}).value || '';
+          var company = (document.getElementById('lead-company') || {}).value || '';
+          var email = (document.getElementById('lead-email') || {}).value || '';
+          var plan = (document.getElementById('lead-plan') || {}).value || '';
+          var notes = (document.getElementById('lead-notes') || {}).value || '';
+          var channelNodes = document.querySelectorAll('input[name="channel"]:checked');
+          var channels = [];
+          channelNodes.forEach(function (c) { channels.push(c.value); });
 
-          const subject = encodeURIComponent('[Sentinela B2B] Solicitud de Licencia - ' + company);
-          const body = encodeURIComponent(
+          var subject = encodeURIComponent('[Sentinela B2B] Solicitud de Licencia - ' + company);
+          var body = encodeURIComponent(
             'Hola Pavel,\n\n' +
             'Solicito información y activación de Sentinela · NOC Regulatorio con los siguientes datos:\n\n' +
             '• Nombre y Cargo: ' + name + '\n' +
@@ -1826,171 +1840,70 @@ export const LANDING_HTML = `<!DOCTYPE html>
             'Enviado desde la consola pública de Sentinela.'
           );
 
-          feedback.style.display = 'block';
-          feedback.textContent = '✓ Abriendo cliente de correo hacia pavel@arksystems.site...';
+          if (feedback) {
+            feedback.style.display = 'block';
+            feedback.textContent = '✓ Abriendo cliente de correo hacia pavel@arksystems.site...';
+          }
           window.location.href = 'mailto:pavel@arksystems.site?subject=' + subject + '&body=' + body;
         });
       }
+    })();
+  </script>
 
-      // 6. ESCENA 3D INTERACTIVA: PRISMA HEXAGONAL & OJO DE LA LEY SENTINELA
-      const canvas = document.getElementById('sentinela-3d-canvas');
-      const container = document.getElementById('canvas-container');
-      if (!canvas || !window.THREE) return;
+  <!-- ========================================================================
+       SCRIPT 3D CON MULTI-CDN AUTOMÁTICO Y FALLBACK GARANTIZADO AL 100%
+       ======================================================================== -->
+  <script>
+    (function () {
+      var canvas = document.getElementById('sentinela-3d-canvas');
+      var container = document.getElementById('canvas-container');
+      if (!canvas || !container) return;
 
-      const scene = new THREE.Scene();
-      const camera = new THREE.PerspectiveCamera(42, container.clientWidth / container.clientHeight, 0.1, 100);
-      camera.position.set(0, 0, 9.2);
+      var currentSim = 'critical';
 
-      const renderer = new THREE.WebGLRenderer({ canvas: canvas, antialias: true, alpha: true });
-      renderer.setSize(container.clientWidth, container.clientHeight);
-      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      // 1. CARGA ROBUSTA DE THREE.JS CON 3 CDNS EN CADENA
+      var CDNS = [
+        'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+        'https://unpkg.com/three@0.128.0/build/three.min.js',
+        'https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js'
+      ];
+      var cdnIndex = 0;
 
-      // Iluminación dramática de centro de mando
-      const ambientLight = new THREE.AmbientLight(0x94A3B8, 0.7);
-      scene.add(ambientLight);
-
-      const keyLight = new THREE.PointLight(0x22D3EE, 2.4, 25);
-      keyLight.position.set(4, 4, 5);
-      scene.add(keyLight);
-
-      const rimLight = new THREE.PointLight(0xE11D48, 1.8, 25);
-      rimLight.position.set(-4, -3, 3);
-      scene.add(rimLight);
-
-      // Grupo maestro del Centinela 3D
-      const sentinelGroup = new THREE.Group();
-      scene.add(sentinelGroup);
-
-      // A) Hexágono Exterior (Escudo Centinela en espacio 3D)
-      const hexRadius = 2.65;
-      const hexShape = new THREE.Shape();
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * Math.PI) / 3 + Math.PI / 6;
-        const x = hexRadius * Math.cos(angle);
-        const y = hexRadius * Math.sin(angle);
-        if (i === 0) hexShape.moveTo(x, y);
-        else hexShape.lineTo(x, y);
-      }
-      hexShape.closePath();
-
-      const holePath = new THREE.Path();
-      const innerR = 2.32;
-      for (let i = 0; i < 6; i++) {
-        const angle = (i * Math.PI) / 3 + Math.PI / 6;
-        const x = innerR * Math.cos(angle);
-        const y = innerR * Math.sin(angle);
-        if (i === 0) holePath.moveTo(x, y);
-        else holePath.lineTo(x, y);
-      }
-      holePath.closePath();
-      hexShape.holes.push(holePath);
-
-      const extrudeSettings = { depth: 0.28, bevelEnabled: true, bevelSegments: 2, steps: 1, bevelSize: 0.04, bevelThickness: 0.04 };
-      const hexGeo = new THREE.ExtrudeGeometry(hexShape, extrudeSettings);
-      hexGeo.center();
-      const hexMat = new THREE.MeshStandardMaterial({
-        color: 0x16203A,
-        metalness: 0.85,
-        roughness: 0.2,
-        emissive: 0x0D1420,
-        emissiveIntensity: 0.5
-      });
-      const hexMesh = new THREE.Mesh(hexGeo, hexMat);
-      sentinelGroup.add(hexMesh);
-
-      // Aristas luminosas del hexágono
-      const hexEdges = new THREE.EdgesGeometry(hexGeo);
-      const hexLineMat = new THREE.LineBasicMaterial({ color: 0x22D3EE, transparent: true, opacity: 0.65 });
-      const hexWireframe = new THREE.LineSegments(hexEdges, hexLineMat);
-      sentinelGroup.add(hexWireframe);
-
-      // B) 4 Anillos Giroscópicos (Los 4 Canales: Fiscal, Cobranza, Fintech, Laboral)
-      const channelColors = [0x10B981, 0x3B82F6, 0x8B5CF6, 0xF59E0B];
-      const rings = [];
-      channelColors.forEach((col, idx) => {
-        const r = 1.92 - idx * 0.22;
-        const torusGeo = new THREE.TorusGeometry(r, 0.025, 16, 90);
-        const torusMat = new THREE.MeshStandardMaterial({
-          color: col,
-          emissive: col,
-          emissiveIntensity: 0.45,
-          metalness: 0.7,
-          roughness: 0.25
-        });
-        const ring = new THREE.Mesh(torusGeo, torusMat);
-        ring.rotation.x = (idx * 0.42);
-        ring.rotation.y = (idx * 0.65);
-        sentinelGroup.add(ring);
-        rings.push(ring);
-      });
-
-      // C) Iris y Pupila Central (El Ojo que nunca parpadea)
-      const irisGeo = new THREE.IcosahedronGeometry(0.82, 1);
-      const irisMat = new THREE.MeshStandardMaterial({
-        color: 0x0F172A,
-        emissive: 0xE11D48,
-        emissiveIntensity: 0.75,
-        wireframe: true
-      });
-      const irisMesh = new THREE.Mesh(irisGeo, irisMat);
-      sentinelGroup.add(irisMesh);
-
-      const pupilGeo = new THREE.SphereGeometry(0.46, 32, 32);
-      const pupilMat = new THREE.MeshStandardMaterial({
-        color: 0xFB7185,
-        emissive: 0xE11D48,
-        emissiveIntensity: 1.2,
-        metalness: 0.3,
-        roughness: 0.1
-      });
-      const pupilMesh = new THREE.Mesh(pupilGeo, pupilMat);
-      sentinelGroup.add(pupilMesh);
-
-      // D) Nube de Nodos Oficiales en Órbita
-      const particlesGeo = new THREE.BufferGeometry();
-      const count = 90;
-      const positions = new Float32Array(count * 3);
-      for (let i = 0; i < count; i++) {
-        const theta = Math.random() * Math.PI * 2;
-        const phi = Math.acos(2 * Math.random() - 1);
-        const rad = 2.9 + Math.random() * 1.4;
-        positions[i * 3] = rad * Math.sin(phi) * Math.cos(theta);
-        positions[i * 3 + 1] = rad * Math.sin(phi) * Math.sin(theta);
-        positions[i * 3 + 2] = rad * Math.cos(phi);
-      }
-      particlesGeo.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-      const particlesMat = new THREE.PointsMaterial({ color: 0x22D3EE, size: 0.055, transparent: true, opacity: 0.75 });
-      const particleCloud = new THREE.Points(particlesGeo, particlesMat);
-      scene.add(particleCloud);
-
-      // Interacción con Mouse / Touch
-      let targetRotX = 0;
-      let targetRotY = 0;
-      let pulseSpeed = 3.2;
-      const coordsEl = document.getElementById('hud-coords');
-
-      container.addEventListener('mousemove', (e) => {
-        const rect = container.getBoundingClientRect();
-        const nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
-        const ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
-        targetRotY = nx * 0.65;
-        targetRotX = -ny * 0.45;
-        if (coordsEl) {
-          coordsEl.textContent = 'AZIMUTH: ' + (nx * 45).toFixed(1) + '° · ELEV: ' + (ny * 30).toFixed(1) + '°';
+      function loadThreeScript() {
+        if (window.THREE) {
+          init3D();
+          return;
         }
-      });
+        if (cdnIndex >= CDNS.length) {
+          console.warn('[Sentinela 3D] No fue posible cargar Three.js desde CDN. Activando motor radar 2D procedural.');
+          init2DFallback();
+          return;
+        }
+        var s = document.createElement('script');
+        s.src = CDNS[cdnIndex];
+        s.async = true;
+        s.onload = function () {
+          if (window.THREE) {
+            init3D();
+          } else {
+            cdnIndex++;
+            loadThreeScript();
+          }
+        };
+        s.onerror = function () {
+          cdnIndex++;
+          loadThreeScript();
+        };
+        document.head.appendChild(s);
+      }
 
-      container.addEventListener('mouseleave', () => {
-        targetRotX = 0;
-        targetRotY = 0;
-      });
-
-      // Estados de Simulación Interactiva
-      const SIM_STATES = {
+      // Estados de Simulación
+      var SIM_STATES = {
         critical: {
-          color: 0xE11D48,
-          lit: 0xFB7185,
-          hexColor: '#E11D48',
+          hex: '#E11D48',
+          lit: '#FB7185',
+          num: 0xE11D48,
+          numLit: 0xFB7185,
           speed: 3.6,
           mode: 'ESTADO: ALERTA CRÍTICA DETECTADA EN DOF',
           pillClass: 'pill pill--active pill--critical sev-critical',
@@ -2002,9 +1915,10 @@ export const LANDING_HTML = `<!DOCTYPE html>
           meta: 'ENTRADA EN VIGOR: 2026-11-01 · ACCIÓN: AJUSTAR MOTOR DE ENVÍOS A 08:00–20:00 HRS'
         },
         high: {
-          color: 0xF97316,
-          lit: 0xFBBF24,
-          hexColor: '#F97316',
+          hex: '#F97316',
+          lit: '#FBBF24',
+          num: 0xF97316,
+          numLit: 0xFBBF24,
           speed: 2.4,
           mode: 'ESTADO: CAMBIO RELEVANTE EN PORTAL SAT',
           pillClass: 'pill sev-high',
@@ -2016,9 +1930,10 @@ export const LANDING_HTML = `<!DOCTYPE html>
           meta: 'ENTRADA EN VIGOR: 2026-11-15 · ACCIÓN: ACTUALIZAR VALIDADOR DE TIMBRADO Y RFC 69-B'
         },
         medium: {
-          color: 0x06B6D4,
-          lit: 0x22D3EE,
-          hexColor: '#06B6D4',
+          hex: '#06B6D4',
+          lit: '#22D3EE',
+          num: 0x06B6D4,
+          numLit: 0x22D3EE,
           speed: 1.6,
           mode: 'ESTADO: CIRCULAR TÉCNICA CNBV / BANXICO',
           pillClass: 'pill sev-medium',
@@ -2030,9 +1945,10 @@ export const LANDING_HTML = `<!DOCTYPE html>
           meta: 'ENTRADA EN VIGOR: 2026-12-01 · ACCIÓN: REVISAR RETENCIÓN CRIPTOGRÁFICA PLD'
         },
         low: {
-          color: 0x64748B,
-          lit: 0x94A3B8,
-          hexColor: '#64748B',
+          hex: '#64748B',
+          lit: '#94A3B8',
+          num: 0x64748B,
+          numLit: 0x94A3B8,
           speed: 1.0,
           mode: 'ESTADO: ESCANEO PERIMETRAL ORDINARIO',
           pillClass: 'pill sev-low',
@@ -2045,72 +1961,329 @@ export const LANDING_HTML = `<!DOCTYPE html>
         }
       };
 
-      const simBtns = document.querySelectorAll('.sim-btn');
-      simBtns.forEach((btn) => {
-        btn.addEventListener('click', () => {
-          simBtns.forEach((b) => b.classList.remove('active'));
-          btn.classList.add('active');
-          const key = btn.getAttribute('data-sim');
-          const st = SIM_STATES[key];
-          if (!st) return;
+      function updateHUD(key) {
+        var st = SIM_STATES[key];
+        if (!st) return;
+        currentSim = key;
+        var modeEl = document.getElementById('hud-mode-label');
+        if (modeEl) modeEl.textContent = st.mode;
 
-          irisMat.emissive.setHex(st.color);
-          pupilMat.color.setHex(st.lit);
-          pupilMat.emissive.setHex(st.color);
-          rimLight.color.setHex(st.color);
-          hexLineMat.color.setHex(st.lit);
-          pulseSpeed = st.speed;
-
-          document.getElementById('hud-mode-label').textContent = st.mode;
-          const sevPill = document.getElementById('hud-sev-pill');
+        var sevPill = document.getElementById('hud-sev-pill');
+        if (sevPill) {
           sevPill.className = st.pillClass;
           sevPill.textContent = st.pillText;
+        }
 
-          const chBadge = document.getElementById('hud-channel-badge');
+        var chBadge = document.getElementById('hud-channel-badge');
+        if (chBadge) {
           chBadge.className = st.chClass;
           chBadge.textContent = st.chText;
+        }
 
-          document.getElementById('hud-folio').textContent = st.folio;
-          document.getElementById('hud-title').textContent = st.title;
-          document.getElementById('hud-meta').textContent = st.meta;
-          document.getElementById('hud-alert-box').style.borderLeftColor = st.hexColor;
-        });
-      });
+        var folioEl = document.getElementById('hud-folio');
+        if (folioEl) folioEl.textContent = st.folio;
 
-      // Loop de Animación a 60 FPS
-      let clock = 0;
-      function animate() {
-        requestAnimationFrame(animate);
-        clock += 0.016;
+        var titleEl = document.getElementById('hud-title');
+        if (titleEl) titleEl.textContent = st.title;
 
-        // Seguimiento suave del cursor
-        sentinelGroup.rotation.y += (targetRotY - sentinelGroup.rotation.y) * 0.06;
-        sentinelGroup.rotation.x += (targetRotX - sentinelGroup.rotation.x) * 0.06;
+        var metaEl = document.getElementById('hud-meta');
+        if (metaEl) metaEl.textContent = st.meta;
 
-        // Rotación giroscópica de cada anillo de canal
-        rings.forEach((ring, i) => {
-          const dir = i % 2 === 0 ? 1 : -1;
-          ring.rotation.z += 0.004 * dir * (i + 1);
-          ring.rotation.x += 0.002 * dir;
-        });
-
-        // Pulso del iris y la pupila según la severidad activa
-        const s = 1 + Math.sin(clock * pulseSpeed) * 0.075;
-        pupilMesh.scale.set(s, s, s);
-        irisMesh.rotation.y -= 0.008;
-        irisMesh.rotation.z += 0.005;
-
-        particleCloud.rotation.y += 0.0012;
-        renderer.render(scene, camera);
+        var alertBox = document.getElementById('hud-alert-box');
+        if (alertBox) alertBox.style.borderLeftColor = st.hex;
       }
-      animate();
 
-      window.addEventListener('resize', () => {
-        if (!container) return;
-        camera.aspect = container.clientWidth / container.clientHeight;
-        camera.updateProjectionMatrix();
-        renderer.setSize(container.clientWidth, container.clientHeight);
+      // Conectar botones de simulación
+      var simBtns = document.querySelectorAll('.sim-btn');
+      simBtns.forEach(function (btn) {
+        btn.addEventListener('click', function () {
+          simBtns.forEach(function (b) { b.classList.remove('active'); });
+          btn.classList.add('active');
+          var simKey = btn.getAttribute('data-sim') || 'critical';
+          updateHUD(simKey);
+          if (window._sentinelaApplySim) {
+            window._sentinelaApplySim(simKey);
+          }
+        });
       });
+
+      // 2. MOTOR 3D PRINCIPAL (THREE.JS WEBGL)
+      function init3D() {
+        try {
+          var THREE = window.THREE;
+          var w = container.clientWidth || 560;
+          var h = container.clientHeight || 380;
+
+          var scene = new THREE.Scene();
+          var camera = new THREE.PerspectiveCamera(40, w / h, 0.1, 100);
+          camera.position.set(0, 0, 8.8);
+
+          var renderer = new THREE.WebGLRenderer({
+            canvas: canvas,
+            antialias: true,
+            alpha: true,
+            powerPreference: 'high-performance'
+          });
+          renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+          renderer.setSize(w, h, false);
+
+          // Luces de Centro de Mando
+          var ambientLight = new THREE.AmbientLight(0x94A3B8, 0.8);
+          scene.add(ambientLight);
+
+          var cyanLight = new THREE.PointLight(0x22D3EE, 2.5, 30);
+          cyanLight.position.set(4, 4, 6);
+          scene.add(cyanLight);
+
+          var rimLight = new THREE.PointLight(0xE11D48, 2.0, 30);
+          rimLight.position.set(-4, -4, 4);
+          scene.add(rimLight);
+
+          // Grupo Maestro del Centinela 3D
+          var sentinelGroup = new THREE.Group();
+          scene.add(sentinelGroup);
+
+          // A) Hexágono Tubular 3D Beveled (Garantizado sin errores de triangulación)
+          // Usamos TorusGeometry de 6 segmentos: un prisma hexagonal tubular perfecto
+          var hexGeo = new THREE.TorusGeometry(2.5, 0.08, 16, 6);
+          hexGeo.rotateZ(Math.PI / 6);
+          var hexMat = new THREE.MeshStandardMaterial({
+            color: 0x16203A,
+            emissive: 0x070A11,
+            metalness: 0.9,
+            roughness: 0.2
+          });
+          var hexMesh = new THREE.Mesh(hexGeo, hexMat);
+          sentinelGroup.add(hexMesh);
+
+          // Wireframe luminiscente del hexágono
+          var hexWireGeo = new THREE.TorusGeometry(2.54, 0.02, 8, 6);
+          hexWireGeo.rotateZ(Math.PI / 6);
+          var hexWireMat = new THREE.MeshBasicMaterial({ color: 0x22D3EE, transparent: true, opacity: 0.85 });
+          var hexWire = new THREE.Mesh(hexWireGeo, hexWireMat);
+          sentinelGroup.add(hexWire);
+
+          // B) 4 Anillos Giroscópicos (Fiscal, Cobranza, Fintech, Laboral)
+          var channelColors = [0x10B981, 0x3B82F6, 0x8B5CF6, 0xF59E0B];
+          var rings = [];
+          for (var i = 0; i < channelColors.length; i++) {
+            var col = channelColors[i];
+            var ringRadius = 1.95 - i * 0.24;
+            var tGeo = new THREE.TorusGeometry(ringRadius, 0.032, 16, 72);
+            var tMat = new THREE.MeshStandardMaterial({
+              color: col,
+              emissive: col,
+              emissiveIntensity: 0.6,
+              metalness: 0.6,
+              roughness: 0.3
+            });
+            var ring = new THREE.Mesh(tGeo, tMat);
+            ring.rotation.x = i * 0.44;
+            ring.rotation.y = i * 0.72;
+            sentinelGroup.add(ring);
+            rings.push(ring);
+          }
+
+          // C) Iris Icosaédrico + Pupila Central
+          var irisGeo = new THREE.IcosahedronGeometry(0.85, 1);
+          var irisMat = new THREE.MeshStandardMaterial({
+            color: 0x0F172A,
+            emissive: 0xE11D48,
+            emissiveIntensity: 0.9,
+            wireframe: true
+          });
+          var irisMesh = new THREE.Mesh(irisGeo, irisMat);
+          sentinelGroup.add(irisMesh);
+
+          var pupilGeo = new THREE.SphereGeometry(0.48, 32, 32);
+          var pupilMat = new THREE.MeshStandardMaterial({
+            color: 0xFB7185,
+            emissive: 0xE11D48,
+            emissiveIntensity: 1.4,
+            metalness: 0.2,
+            roughness: 0.1
+          });
+          var pupilMesh = new THREE.Mesh(pupilGeo, pupilMat);
+          sentinelGroup.add(pupilMesh);
+
+          // D) Nube de Nodos Orbitando
+          var nodeCount = 80;
+          var pGeo = new THREE.BufferGeometry();
+          var pPos = new Float32Array(nodeCount * 3);
+          for (var p = 0; p < nodeCount; p++) {
+            var theta = Math.random() * Math.PI * 2;
+            var phi = Math.acos(2 * Math.random() - 1);
+            var rad = 2.8 + Math.random() * 1.4;
+            pPos[p * 3] = rad * Math.sin(phi) * Math.cos(theta);
+            pPos[p * 3 + 1] = rad * Math.sin(phi) * Math.sin(theta);
+            pPos[p * 3 + 2] = rad * Math.cos(phi);
+          }
+          pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3));
+          var pMat = new THREE.PointsMaterial({ color: 0x22D3EE, size: 0.065, transparent: true, opacity: 0.8 });
+          var particleCloud = new THREE.Points(pGeo, pMat);
+          scene.add(particleCloud);
+
+          // E) Función de transición reactiva al hacer click en simulaciones
+          var pulseSpeed = 3.6;
+          window._sentinelaApplySim = function (simKey) {
+            var st = SIM_STATES[simKey] || SIM_STATES.critical;
+            irisMat.emissive.setHex(st.num);
+            pupilMat.color.setHex(st.numLit);
+            pupilMat.emissive.setHex(st.num);
+            rimLight.color.setHex(st.num);
+            hexWireMat.color.setHex(st.numLit);
+            pulseSpeed = st.speed;
+          };
+
+          // F) Control de Mouse / Inclinación
+          var targetRotX = 0;
+          var targetRotY = 0;
+          var coordsEl = document.getElementById('hud-coords');
+
+          container.addEventListener('mousemove', function (e) {
+            var rect = container.getBoundingClientRect();
+            var nx = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+            var ny = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+            targetRotY = nx * 0.75;
+            targetRotX = -ny * 0.55;
+            if (coordsEl) {
+              coordsEl.textContent = 'AZIMUTH: ' + (nx * 45).toFixed(1) + '° · ELEV: ' + (ny * 30).toFixed(1) + '°';
+            }
+          });
+
+          container.addEventListener('mouseleave', function () {
+            targetRotX = 0;
+            targetRotY = 0;
+          });
+
+          // G) Loop de Renderizado 60 FPS con Auto-Resize Dinámico
+          var clock = 0;
+          var lastWidth = 0;
+          var lastHeight = 0;
+
+          function animate() {
+            requestAnimationFrame(animate);
+            clock += 0.016;
+
+            // Auto-ajuste de tamaño si el contenedor cambia en flex
+            var currentW = container.clientWidth || 560;
+            var currentH = container.clientHeight || 380;
+            if (currentW !== lastWidth || currentH !== lastHeight) {
+              if (currentW > 50 && currentH > 50) {
+                lastWidth = currentW;
+                lastHeight = currentH;
+                camera.aspect = currentW / currentH;
+                camera.updateProjectionMatrix();
+                renderer.setSize(currentW, currentH, false);
+              }
+            }
+
+            // Suavizado cinético del seguimiento
+            sentinelGroup.rotation.y += (targetRotY - sentinelGroup.rotation.y) * 0.07;
+            sentinelGroup.rotation.x += (targetRotX - sentinelGroup.rotation.x) * 0.07;
+
+            // Rotación giroscópica de cada canal
+            for (var rIdx = 0; rIdx < rings.length; rIdx++) {
+              var dir = rIdx % 2 === 0 ? 1 : -1;
+              rings[rIdx].rotation.z += 0.005 * dir * (rIdx + 1);
+              rings[rIdx].rotation.x += 0.003 * dir;
+            }
+
+            // Pulso del núcleo
+            var s = 1 + Math.sin(clock * pulseSpeed) * 0.085;
+            pupilMesh.scale.set(s, s, s);
+            irisMesh.rotation.y -= 0.009;
+            irisMesh.rotation.z += 0.006;
+
+            particleCloud.rotation.y += 0.0015;
+            renderer.render(scene, camera);
+          }
+          animate();
+
+        } catch (err) {
+          console.error('[Sentinela 3D] Error inicializando WebGL:', err);
+          init2DFallback();
+        }
+      }
+
+      // 3. MOTOR DE EMERGENCIA PROCEDURAL 2D (SI EL NAVEGADOR BLOQUEA WEBGL)
+      function init2DFallback() {
+        var ctx = canvas.getContext('2d');
+        if (!ctx) return;
+
+        var clock = 0;
+        function render2DFallback() {
+          requestAnimationFrame(render2DFallback);
+          clock += 0.03;
+
+          var w = container.clientWidth || 560;
+          var h = container.clientHeight || 380;
+          canvas.width = w;
+          canvas.height = h;
+
+          var cx = w / 2;
+          var cy = h / 2;
+          var st = SIM_STATES[currentSim] || SIM_STATES.critical;
+
+          ctx.clearRect(0, 0, w, h);
+
+          // Fondo de radar
+          var grad = ctx.createRadialGradient(cx, cy, 20, cx, cy, 240);
+          grad.addColorStop(0, 'rgba(22, 32, 58, 0.45)');
+          grad.addColorStop(1, 'rgba(7, 10, 17, 0.95)');
+          ctx.fillStyle = grad;
+          ctx.fillRect(0, 0, w, h);
+
+          // Hexágono exterior
+          ctx.strokeStyle = '#22D3EE';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          var hexR = 140;
+          for (var i = 0; i < 6; i++) {
+            var a = (i * Math.PI) / 3 + Math.PI / 6 + clock * 0.2;
+            var x = cx + hexR * Math.cos(a);
+            var y = cy + hexR * Math.sin(a);
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.closePath();
+          ctx.stroke();
+
+          // Anillos de canal
+          var ringColors = ['#10B981', '#3B82F6', '#8B5CF6', '#F59E0B'];
+          for (var r = 0; r < ringColors.length; r++) {
+            var rad = 110 - r * 18;
+            ctx.save();
+            ctx.translate(cx, cy);
+            ctx.rotate(clock * (r % 2 === 0 ? 0.4 : -0.4) * (r + 1));
+            ctx.strokeStyle = ringColors[r];
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(0, 0, rad, 0, Math.PI * 1.5);
+            ctx.stroke();
+            ctx.restore();
+          }
+
+          // Núcleo central pulsante
+          var pulse = 24 + Math.sin(clock * (st.speed || 3)) * 6;
+          ctx.fillStyle = st.hex;
+          ctx.beginPath();
+          ctx.arc(cx, cy, pulse, 0, Math.PI * 2);
+          ctx.fill();
+
+          ctx.strokeStyle = st.lit;
+          ctx.lineWidth = 3;
+          ctx.stroke();
+        }
+        render2DFallback();
+      }
+
+      // Iniciar carga del script
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', loadThreeScript);
+      } else {
+        loadThreeScript();
+      }
     })();
   </script>
 </body>
