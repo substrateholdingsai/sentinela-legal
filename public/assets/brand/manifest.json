@@ -1,0 +1,62 @@
+{
+  "system": "Sentinela · NOC Regulatorio",
+  "client": "sentinela-legal",
+  "assets": [
+    {
+      "file": "sentinela-symbol.svg",
+      "kb": 0.76
+    },
+    {
+      "file": "sentinela-logo-dark.svg",
+      "kb": 1.08
+    },
+    {
+      "file": "sentinela-logo-light.svg",
+      "kb": 1.08
+    },
+    {
+      "file": "favicon.svg",
+      "kb": 0.42
+    },
+    {
+      "file": "channel-fiscal.svg",
+      "kb": 0.33
+    },
+    {
+      "file": "channel-cobranza.svg",
+      "kb": 0.28
+    },
+    {
+      "file": "channel-fintech.svg",
+      "kb": 0.36
+    },
+    {
+      "file": "channel-laboral.svg",
+      "kb": 0.31
+    },
+    {
+      "file": "badge-critical.svg",
+      "kb": 0.41
+    },
+    {
+      "file": "badge-high.svg",
+      "kb": 0.41
+    },
+    {
+      "file": "badge-medium.svg",
+      "kb": 0.41
+    },
+    {
+      "file": "badge-low.svg",
+      "kb": 0.41
+    },
+    {
+      "file": "reticle-grid.svg",
+      "kb": 0.21
+    },
+    {
+      "file": "og-image.svg",
+      "kb": 3.21
+    }
+  ]
+}
