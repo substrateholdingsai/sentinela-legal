@@ -21,13 +21,13 @@ Contacto comercial y ventas: `pavel@arksystems.site`
 - Frontend / Fachada B2B: Landing page pública embebida en Worker (`/` con negociación de contenido y `/landing`), Three.js WebGL autónomo con fallback procedimental 2D y captura de leads.
 
 Módulos:
-- `src/ingestors/*` — DOF RSS, SAT scraper.
+- `src/ingestors/*` — DOF RSS, SAT scraper, CONDUSEF scraper (gob.mx), CNBV scraper (gob.mx), BANXICO scraper (normativa cronológica).
 - `src/ai/analyzer.ts` — análisis estructurado Llama 3.3 70B con fallback heurístico.
 - `src/lib/db.ts` — persistencia D1, soporte multi-tenant y consultas indexadas.
 - `src/lib/auth-sovereign.ts` — auth passwordless + JWT HS256 + refresh rotativo + revocación jti.
 - `src/lib/auth.ts` — Bearer auth + rate limit KV por IP/tenant + tenant resolution.
 - `src/webhook/dispatcher.ts` — entrega firmada HMAC-SHA256.
-- `src/pipeline.ts` — orquestación con concurrencia acotada (`runPool`), cache KV (30d) y timeouts.
+- `src/pipeline.ts` — orquestación concurrente con `Promise.allSettled` sobre las 5 fuentes, control de flujo (`runPool`), cache KV (30d) y timeouts.
 - `src/landing/page.ts` — fachada comercial B2B, motor 3D Three.js, simulador de alertas y captura comercial (`pavel@arksystems.site`).
 - `scripts/generate_assets.py` — asset forge vectorial SVG de marca (15 assets nativos).
 - `scripts/generate_seo_assets.py` — capa de rasterización PNG con Pillow (11 assets SEO/PWA + tarjetas dinámicas de alerta 1200x630).
@@ -44,15 +44,20 @@ Módulos:
 
 Completado:
 - Scaffold Worker + Hono + bindings edge (D1, KV, AI).
-- Migraciones D1:
+- Migraciones D1 (todas aplicadas en producción):
   - `0001_init.sql` (tablas base `regulatory_events`, `subscribers`, `delivery_logs`).
   - `0002_action_required.sql` (metadatos de acción regulatoria).
   - `0003_multi_tenant.sql` (`tenants`, aislamiento en `subscribers.tenant_id`).
   - `0004_auth.sql` (`auth_users`, `auth_codes`, `auth_sessions`, `revoked_tokens`).
 - Auth soberano passwordless (`/auth/request-code`, `/auth/verify`, `/auth/refresh`, `/auth/logout`).
 - CRUD de suscriptores con filtro y aislamiento por `tenant_id`.
-- Ingestores DOF/SAT con matriz regex de 4 canales (`fiscal`, `cobranza`, `fintech_banca`, `laboral`).
-- Pipeline con dedup KV + IA + dispatch HMAC (throttled).
+- 5 Ingestores regulatorios oficiales:
+  - DOF (Diario Oficial de la Federación — RSS nativo).
+  - SAT (Servicio de Administración Tributaria — scraper fiscal).
+  - CONDUSEF (Comisión Nacional para la Protección de Usuarios Financieros — REDECO / Cobranza).
+  - CNBV (Comisión Nacional Bancaria y de Valores — Fintech IFPE / Capitalización Bancaria).
+  - BANXICO (Banco de México — Circulares normativas / SPEI / Medios de Disposición).
+- Pipeline orquestado con `Promise.allSettled` resiliente a caídas de portales individuales, dedup KV + IA + dispatch HMAC.
 - Design System v1.0 completo (`docs/designsystem.md`) bajo el principio rector: *"El color es significado, nunca decoración"*.
 - Forges de activos generados y versionados:
   - Vectoriales: 15 SVGs en `public/assets/brand/`.
@@ -60,15 +65,13 @@ Completado:
 - Landing Page pública B2B interactiva con Three.js (`src/landing/page.ts`), conmutador Dark NOC / Light Ejecutivo y captación a `pavel@arksystems.site`.
 - API segura: health público (`/`), subscribers, events, run, auth.
 - Cron scheduled handler.
-- Suite de pruebas unitarias Vitest (18/18 pasando).
+- Suite de pruebas unitarias Vitest (25/25 pasando al 100%).
 - Repositorio remoto Git configurado.
 
 Pendiente:
-- Ingestores oficiales faltantes: CONDUSEF, CNBV, Banxico.
 - Auth por suscriptor individual (API keys emitidas por tenant).
 - Reintentos con backoff exponencial en webhooks fallidos.
-- Pruebas unitarias dedicadas para la suite de `/auth/*`.
-- Dashboard / panel de control web para suscriptores.
+- Dashboard / panel de control web NOC para suscriptores.
 - Sistema de facturación recurrente (monetización/billing).
 
 ## 5. Plan de Sprints
@@ -78,12 +81,13 @@ Pendiente:
 - [x] D1/KV creados y migrados
 - [x] Remote git
 
-### Sprint 1 — Ingesta & Dedup (DONE/PARCIAL)
+### Sprint 1 — Ingesta & Dedup (DONE)
 - [x] DOF RSS parser
 - [x] SAT scraper
-- [x] KV dedup
-- [ ] CONDUSEF ingestor
-- [ ] CNBV/Banxico ingestor
+- [x] CONDUSEF ingestor (REDECO / Cobranza)
+- [x] CNBV ingestor (Bancos / Fintech)
+- [x] BANXICO ingestor (Circulares / SPEI)
+- [x] KV dedup de 30 días
 
 ### Sprint 2 — IA & Clasificación (DONE/PARCIAL)
 - [x] Workers AI integrado (`@cf/meta/llama-3.3-70b-instruct-fp8-fast`)
@@ -105,7 +109,7 @@ Pendiente:
 - [x] Bearer auth + rate limit en KV
 - [x] Migración multi-tenant D1 (`tenants`, `tenant_id`)
 - [x] Auth soberano passwordless (código 6 dígitos + JWT HS256 + refresh rotativo 30d + revocación)
-- [ ] Tests unitarios automatizados para endpoints `/auth/*`
+- [x] Tests unitarios automatizados para endpoints `/auth/*` y los 5 ingestores (25 tests verdes)
 - [ ] Auth por suscriptor (API keys individuales)
 - [ ] Reintentos con backoff para entrega de webhooks
 
@@ -157,7 +161,7 @@ Tags de release: `v0.x.y`. Cada release requiere:
 
 ## 8. Riesgos & Dependencias
 
-- Disponibilidad de feeds oficiales (DOF/SAT) y cambios de estructura HTML.
+- Disponibilidad de feeds oficiales (DOF/SAT/CONDUSEF/CNBV/BANXICO); mitigado con `Promise.allSettled`.
 - Cuotas Workers AI en free tier.
 - Límite de 5 cron triggers en Cloudflare Free Tier (error 10072 tolerado si ya existen crons en la cuenta).
 - Entorno Windows: wrangler/vitest con diferencias de spawn; validar en CI.

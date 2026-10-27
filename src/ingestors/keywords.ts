@@ -1,10 +1,54 @@
 import type { IngestedItem, Source, Channel } from "../types";
 
 const KEYWORDS: Record<Channel, RegExp[]> = {
-  fiscal: [/sat\b/i, /impuesto/i, /deducci/i, /facturaci/i, /cfdi/i, /resoluci.n miscel/i, /69-?b/i],
-  cobranza: [/condusef/i, /redeco/i, /284\s*bis/i, /nom-?184/i, /cobranza/i],
-  fintech_banca: [/cnbv/i, /banxico/i, /pld/i, /lavado/i, /fintech/i, /banca/i],
-  laboral: [/stps/i, /salario m.nimo/i, /imss/i, /infonavit/i, /laboral/i, /trabajo/i],
+  fiscal: [
+    /sat\b/i,
+    /impuesto/i,
+    /deducci/i,
+    /facturaci/i,
+    /cfdi/i,
+    /resoluci.n miscel/i,
+    /69-?b/i,
+    /declaraci/i,
+    /buz.n tributario/i,
+  ],
+  cobranza: [
+    /condusef/i,
+    /redeco/i,
+    /284\s*bis/i,
+    /nom-?184/i,
+    /cobranza/i,
+    /despacho.*cobranza/i,
+    /reclamaci/i,
+    /buro.*entidades/i,
+    /suplantaci/i,
+    /sipres/i,
+    /cartera vencida/i,
+  ],
+  fintech_banca: [
+    /cnbv/i,
+    /banxico/i,
+    /pld/i,
+    /lavado/i,
+    /fintech/i,
+    /banca/i,
+    /spei/i,
+    /circular\b/i,
+    /ifpe/i,
+    /capitalizaci/i,
+    /medios de disposici/i,
+  ],
+  laboral: [
+    /stps/i,
+    /salario m.nimo/i,
+    /imss/i,
+    /infonavit/i,
+    /laboral/i,
+    /trabajo/i,
+    /repse/i,
+    /subcontrataci/i,
+    /utilidades|ptu/i,
+  ],
 };
 
 export function classifyChannel(text: string): Channel | null {

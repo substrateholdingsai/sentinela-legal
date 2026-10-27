@@ -1,5 +1,8 @@
 import { ingestDof } from "./ingestors/dof";
 import { ingestSat } from "./ingestors/sat";
+import { ingestCondusef } from "./ingestors/condusef";
+import { ingestCnbv } from "./ingestors/cnbv";
+import { ingestBanxico } from "./ingestors/banxico";
 import { analyzeItem } from "./ai/analyzer";
 import { insertEvent, getEventBySourceId } from "./lib/db";
 import { dispatchEvent } from "./webhook/dispatcher";
@@ -41,9 +44,20 @@ export async function runPipeline(
 ): Promise<{ processed: number; skipped: number; failed: number }> {
   const kv = env.KV;
   const items: IngestedItem[] = [];
-  const dofItems = await ingestDof();
-  const satItems = await ingestSat();
-  items.push(...dofItems, ...satItems);
+
+  const [dof, sat, condusef, cnbv, banxico] = await Promise.allSettled([
+    ingestDof(),
+    ingestSat(),
+    ingestCondusef(),
+    ingestCnbv(),
+    ingestBanxico(),
+  ]);
+
+  if (dof.status === "fulfilled") items.push(...dof.value);
+  if (sat.status === "fulfilled") items.push(...sat.value);
+  if (condusef.status === "fulfilled") items.push(...condusef.value);
+  if (cnbv.status === "fulfilled") items.push(...cnbv.value);
+  if (banxico.status === "fulfilled") items.push(...banxico.value);
 
   const envLimit = env.MAX_PIPELINE_ITEMS ? parseInt(env.MAX_PIPELINE_ITEMS, 10) : NaN;
   const maxItems = options?.maxItems ?? (!isNaN(envLimit) && envLimit > 0 ? envLimit : DEFAULT_MAX_ITEMS);

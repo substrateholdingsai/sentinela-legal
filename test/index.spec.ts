@@ -9,6 +9,9 @@ import worker from "../src/index";
 import { generateId, hmacSha256Hex, sha256Hex } from "../src/lib/crypto";
 import { classifyChannel, parseRssItems } from "../src/ingestors/keywords";
 import { ingestDof } from "../src/ingestors/dof";
+import { ingestCondusef } from "../src/ingestors/condusef";
+import { ingestCnbv } from "../src/ingestors/cnbv";
+import { ingestBanxico } from "../src/ingestors/banxico";
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
@@ -192,6 +195,102 @@ describe("Unit tests: DOF Ingestor", () => {
 	it("returns empty array on network failure", async () => {
 		const mockFetch = (async () => { throw new Error("Network error"); }) as any;
 		const items = await ingestDof(mockFetch);
+		expect(items).toEqual([]);
+	});
+});
+
+describe("Unit tests: CONDUSEF Ingestor", () => {
+	it("parses gob.mx CONDUSEF articles and identifies cobranza channel", async () => {
+		const mockHtml = `
+			<div>
+				<article>
+					<time datetime="2026-10-26 10:00:00">26 de octubre de 2026</time>
+					<h2>Sanciones a despachos de cobranza en REDECO por llamadas fuera de horario</h2>
+					<a class="small-link" href="/condusef/prensa/sanciones-despachos-cobranza-redeco-2026?idiom=es">Continuar leyendo</a>
+				</article>
+				<article>
+					<time datetime="2026-10-25 09:00:00">25 de octubre de 2026</time>
+					<h2>Alerta por suplantacion de SOFOM entidad financiera</h2>
+					<a class="small-link" href="/condusef/prensa/alerta-suplantacion-sofom-2026?idiom=es">Continuar leyendo</a>
+				</article>
+			</div>
+		`;
+		const mockFetch = (async () => new Response(mockHtml, { status: 200 })) as any;
+		const items = await ingestCondusef(mockFetch);
+		expect(items.length).toBe(2);
+		expect(items[0].source).toBe("CONDUSEF");
+		expect(items[0].source_id).toBe("condusef_sanciones-despachos-cobranza-redeco-2026");
+		expect(items[0].source_url).toContain("https://www.gob.mx/condusef/prensa/sanciones-despachos-cobranza-redeco-2026");
+		expect(items[0].channel_hint).toBe("cobranza");
+	});
+
+	it("returns empty array on network failure", async () => {
+		const mockFetch = (async () => { throw new Error("Connection failed"); }) as any;
+		const items = await ingestCondusef(mockFetch);
+		expect(items).toEqual([]);
+	});
+});
+
+describe("Unit tests: CNBV Ingestor", () => {
+	it("parses gob.mx CNBV articles and identifies fintech_banca channel", async () => {
+		const mockHtml = `
+			<div>
+				<article>
+					<time datetime="2026-10-19 11:00:00">19 de octubre de 2026</time>
+					<h2>Indice de Capitalizacion de la banca multiple y disposiciones a Fintech IFPE</h2>
+					<a class="small-link" href="/cnbv/prensa/indice-capitalizacion-banca-multiple-ifpe?idiom=es">Continuar leyendo</a>
+				</article>
+			</div>
+		`;
+		const mockFetch = (async () => new Response(mockHtml, { status: 200 })) as any;
+		const items = await ingestCnbv(mockFetch);
+		expect(items.length).toBe(1);
+		expect(items[0].source).toBe("CNBV");
+		expect(items[0].source_id).toBe("cnbv_indice-capitalizacion-banca-multiple-ifpe");
+		expect(items[0].source_url).toContain("https://www.gob.mx/cnbv/prensa/indice-capitalizacion-banca-multiple-ifpe");
+		expect(items[0].channel_hint).toBe("fintech_banca");
+	});
+
+	it("returns empty array on network failure", async () => {
+		const mockFetch = (async () => { throw new Error("Connection failed"); }) as any;
+		const items = await ingestCnbv(mockFetch);
+		expect(items).toEqual([]);
+	});
+});
+
+describe("Unit tests: BANXICO Ingestor", () => {
+	it("parses Banxico circulars table and formats regulatory items", async () => {
+		const mockHtml = `
+			<table class="table table-striped">
+				<tbody>
+					<tr>
+						<th>Numero</th>
+						<th>Asunto</th>
+					</tr>
+					<tr>
+						<td><a href="/marco-normativo/circular-14-2017/sistema-pagos-spei.html" title="SPEI">14/2017</a></td>
+						<td>Modifica la Circular 14/2017 relativa a las reglas del sistema de pagos SPEI</td>
+					</tr>
+					<tr>
+						<td><a href="/marco-normativo/circular-3-2012/operaciones-credito.html" title="Credito">3/2012</a></td>
+						<td>Modifica la Circular 3/2012 operaciones instituciones de credito</td>
+					</tr>
+				</tbody>
+			</table>
+		`;
+		const mockFetch = (async () => new Response(mockHtml, { status: 200 })) as any;
+		const items = await ingestBanxico(mockFetch);
+		expect(items.length).toBe(2);
+		expect(items[0].source).toBe("BANXICO");
+		expect(items[0].source_id).toBe("banxico_circ_14_2017");
+		expect(items[0].source_url).toBe("https://www.banxico.org.mx/marco-normativo/circular-14-2017/sistema-pagos-spei.html");
+		expect(items[0].title).toContain("Circular 14/2017");
+		expect(items[0].channel_hint).toBe("fintech_banca");
+	});
+
+	it("returns empty array on network failure", async () => {
+		const mockFetch = (async () => { throw new Error("Connection failed"); }) as any;
+		const items = await ingestBanxico(mockFetch);
 		expect(items).toEqual([]);
 	});
 });
