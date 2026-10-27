@@ -1,0 +1,6 @@
+# Sentinela · NOC Regulatorio
+User-agent: *
+Allow: /
+Disallow: /api/v1/
+
+Sitemap: https://sentinela.arksystems.site/sitemap.xml

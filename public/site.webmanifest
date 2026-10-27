@@ -1,0 +1,24 @@
+{
+  "name": "Sentinela · NOC Regulatorio",
+  "short_name": "Sentinela",
+  "description": "Observabilidad regulatoria en tiempo real: DOF, Banxico, CNBV, SAT y STPS clasificados por severidad de impacto y canal temático.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "theme_color": "#070A11",
+  "background_color": "#070A11",
+  "icons": [
+    {
+      "src": "/assets/seo/android-chrome-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/assets/seo/android-chrome-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}
