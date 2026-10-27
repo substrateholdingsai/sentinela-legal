@@ -1,4 +1,4 @@
-import type { RegulatoryEvent, Subscriber, Channel } from "../types";
+import type { RegulatoryEvent, Subscriber, Channel, Tenant } from "../types";
 import { generateId, hmacSha256Hex } from "./crypto";
 
 export async function insertEvent(db: D1Database, ev: Omit<RegulatoryEvent, "created_at"> & { created_at?: string }): Promise<void> {
@@ -45,27 +45,35 @@ export async function listEvents(db: D1Database, opts: { channel?: string; from?
   return (res.results ?? []).map(rowToEvent);
 }
 
-export async function listSubscribers(db: D1Database, activeOnly = true): Promise<Subscriber[]> {
-  const q = activeOnly ? "SELECT * FROM subscribers WHERE active = 1" : "SELECT * FROM subscribers";
-  const res = await db.prepare(q).all<any>();
+export async function listSubscribers(db: D1Database, tenantId?: string, activeOnly = true): Promise<Subscriber[]> {
+  const conds: string[] = [];
+  const binds: any[] = [];
+  if (tenantId) { conds.push("tenant_id = ?"); binds.push(tenantId); }
+  if (activeOnly) conds.push("active = 1");
+  const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
+  const q = `SELECT * FROM subscribers ${where}`;
+  const res = await db.prepare(q).bind(...binds).all<any>();
   return (res.results ?? []).map(rowToSubscriber);
 }
 
-export async function getSubscriber(db: D1Database, id: string): Promise<Subscriber | null> {
-  const row = await db.prepare("SELECT * FROM subscribers WHERE id = ?").bind(id).first<any>();
+export async function getSubscriber(db: D1Database, id: string, tenantId?: string): Promise<Subscriber | null> {
+  const q = tenantId ? "SELECT * FROM subscribers WHERE id = ? AND tenant_id = ?" : "SELECT * FROM subscribers WHERE id = ?";
+  const binds = tenantId ? [id, tenantId] : [id];
+  const row = await db.prepare(q).bind(...binds).first<any>();
   return row ? rowToSubscriber(row) : null;
 }
 
-export async function createSubscriber(db: D1Database, data: { name: string; email: string; channels: Channel[]; webhook_url?: string; webhook_secret?: string }): Promise<Subscriber> {
+export async function createSubscriber(db: D1Database, data: { tenant_id?: string; name: string; email: string; channels: Channel[]; webhook_url?: string; webhook_secret?: string }): Promise<Subscriber> {
   const id = generateId("sub");
+  const tenantId = data.tenant_id ?? "default";
   const secret = data.webhook_secret ?? await hmacSha256Hex(crypto.randomUUID(), id);
   await db
     .prepare(
-      `INSERT INTO subscribers (id, name, email, channels, webhook_url, webhook_secret, active) VALUES (?, ?, ?, ?, ?, ?, 1)`
+      `INSERT INTO subscribers (id, tenant_id, name, email, channels, webhook_url, webhook_secret, active) VALUES (?, ?, ?, ?, ?, ?, ?, 1)`
     )
-    .bind(id, data.name, data.email, JSON.stringify(data.channels), data.webhook_url ?? null, secret)
+    .bind(id, tenantId, data.name, data.email, JSON.stringify(data.channels), data.webhook_url ?? null, secret)
     .run();
-  const sub = await getSubscriber(db, id);
+  const sub = await getSubscriber(db, id, tenantId);
   return sub!;
 }
 
@@ -103,6 +111,7 @@ function rowToSubscriber(row: any): Subscriber {
   try { channels = JSON.parse(row.channels || "[]"); } catch { channels = []; }
   return {
     id: row.id,
+    tenant_id: row.tenant_id ?? "default",
     name: row.name,
     email: row.email,
     channels,
@@ -111,4 +120,23 @@ function rowToSubscriber(row: any): Subscriber {
     active: row.active,
     created_at: row.created_at,
   };
+}
+
+export async function createTenant(db: D1Database, data: { name: string; slug: string }): Promise<Tenant> {
+  const id = generateId("ten");
+  await db.prepare(`INSERT INTO tenants (id, name, slug) VALUES (?, ?, ?)`).bind(id, data.name, data.slug).run();
+  const t = await getTenant(db, id);
+  return t!;
+}
+
+export async function getTenant(db: D1Database, id: string): Promise<Tenant | null> {
+  const row = await db.prepare("SELECT * FROM tenants WHERE id = ?").bind(id).first<any>();
+  if (!row) return null;
+  return { id: row.id, name: row.name, slug: row.slug, active: row.active, created_at: row.created_at };
+}
+
+export async function getTenantBySlug(db: D1Database, slug: string): Promise<Tenant | null> {
+  const row = await db.prepare("SELECT * FROM tenants WHERE slug = ?").bind(slug).first<any>();
+  if (!row) return null;
+  return { id: row.id, name: row.name, slug: row.slug, active: row.active, created_at: row.created_at };
 }

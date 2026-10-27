@@ -20,6 +20,7 @@ export interface RegulatoryEvent {
 
 export interface Subscriber {
   id: string;
+  tenant_id: string;
   name: string;
   email: string;
   channels: Channel[];
@@ -36,6 +37,14 @@ export interface IngestedItem {
   title: string;
   raw_snippet: string;
   channel_hint: Channel | null;
+}
+
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  active: number;
+  created_at: string;
 }
 
 export interface AIAnalysis {

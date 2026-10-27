@@ -4,13 +4,22 @@ import {
 	waitOnExecutionContext,
 	SELF,
 } from "cloudflare:test";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeAll } from "vitest";
 import worker from "../src/index";
 import { generateId, hmacSha256Hex, sha256Hex } from "../src/lib/crypto";
 import { classifyChannel, parseRssItems } from "../src/ingestors/keywords";
 import { ingestDof } from "../src/ingestors/dof";
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
+
+beforeAll(async () => {
+	await env.DB.prepare(`CREATE TABLE IF NOT EXISTS tenants (id TEXT PRIMARY KEY, name TEXT NOT NULL, slug TEXT UNIQUE NOT NULL, api_key_hash TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+	await env.DB.prepare(`CREATE TABLE IF NOT EXISTS subscribers (id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL DEFAULT 'default', name TEXT NOT NULL, email TEXT NOT NULL, channels TEXT NOT NULL, webhook_url TEXT, webhook_secret TEXT, active INTEGER NOT NULL DEFAULT 1, created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+	await env.DB.prepare(`CREATE TABLE IF NOT EXISTS auth_users (id TEXT PRIMARY KEY, email TEXT UNIQUE NOT NULL, tenant_id TEXT NOT NULL DEFAULT 'default', created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+	await env.DB.prepare(`CREATE TABLE IF NOT EXISTS auth_codes (id TEXT PRIMARY KEY, email TEXT NOT NULL, code TEXT NOT NULL, expires_at TEXT NOT NULL, used INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+	await env.DB.prepare(`CREATE TABLE IF NOT EXISTS auth_sessions (id TEXT PRIMARY KEY, user_id TEXT NOT NULL, refresh_token TEXT UNIQUE NOT NULL, expires_at TEXT NOT NULL, revoked INTEGER NOT NULL DEFAULT 0, created_at TEXT NOT NULL DEFAULT (datetime('now')))`).run();
+	await env.DB.prepare(`CREATE TABLE IF NOT EXISTS revoked_tokens (jti TEXT PRIMARY KEY, expires_at TEXT NOT NULL)`).run();
+});
 
 describe("Sentinela worker", () => {
 	it("health endpoint responds", async () => {
@@ -184,5 +193,83 @@ describe("Unit tests: DOF Ingestor", () => {
 		const mockFetch = (async () => { throw new Error("Network error"); }) as any;
 		const items = await ingestDof(mockFetch);
 		expect(items).toEqual([]);
+	});
+});
+
+describe("Auth Soberano Passwordless Flow", () => {
+	it("completes full auth lifecycle: request-code -> verify -> refresh -> logout", async () => {
+		const email = "vigilante@sentinela.test";
+
+		// 1. Request code
+		const reqCode = new IncomingRequest("http://example.com/auth/request-code", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email }),
+		});
+		const ctx1 = createExecutionContext();
+		const resCode = await worker.fetch(reqCode, env, ctx1);
+		await waitOnExecutionContext(ctx1);
+		expect(resCode.status).toBe(200);
+		const jsonCode: any = await resCode.json();
+		expect(jsonCode.ok).toBe(true);
+
+		// Extract code from D1 test DB
+		const codeRow = await env.DB.prepare(
+			"SELECT code FROM auth_codes WHERE email = ? ORDER BY created_at DESC LIMIT 1"
+		).bind(email).first<{ code: string }>();
+		expect(codeRow?.code).toBeDefined();
+
+		// 2. Verify invalid code -> 401
+		const reqBad = new IncomingRequest("http://example.com/auth/verify", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email, code: "000000" }),
+		});
+		const ctxBad = createExecutionContext();
+		const resBad = await worker.fetch(reqBad, env, ctxBad);
+		await waitOnExecutionContext(ctxBad);
+		expect(resBad.status).toBe(401);
+
+		// 3. Verify valid code -> JWT + Refresh
+		const reqVerify = new IncomingRequest("http://example.com/auth/verify", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ email, code: codeRow!.code }),
+		});
+		const ctx2 = createExecutionContext();
+		const resVerify = await worker.fetch(reqVerify, env, ctx2);
+		await waitOnExecutionContext(ctx2);
+		expect(resVerify.status).toBe(200);
+		const jsonVerify: any = await resVerify.json();
+		expect(jsonVerify.token).toBeDefined();
+		expect(jsonVerify.refresh_token).toBeDefined();
+
+		// 4. Refresh token rotation
+		const reqRefresh = new IncomingRequest("http://example.com/auth/refresh", {
+			method: "POST",
+			headers: { "Content-Type": "application/json" },
+			body: JSON.stringify({ refresh_token: jsonVerify.refresh_token }),
+		});
+		const ctx3 = createExecutionContext();
+		const resRefresh = await worker.fetch(reqRefresh, env, ctx3);
+		await waitOnExecutionContext(ctx3);
+		expect(resRefresh.status).toBe(200);
+		const jsonRefresh: any = await resRefresh.json();
+		expect(jsonRefresh.token).toBeDefined();
+		expect(jsonRefresh.refresh_token).not.toBe(jsonVerify.refresh_token);
+
+		// 5. Logout and revoke JWT
+		const reqLogout = new IncomingRequest("http://example.com/auth/logout", {
+			method: "POST",
+			headers: {
+				Authorization: `Bearer ${jsonRefresh.token}`,
+			},
+		});
+		const ctx4 = createExecutionContext();
+		const resLogout = await worker.fetch(reqLogout, env, ctx4);
+		await waitOnExecutionContext(ctx4);
+		expect(resLogout.status).toBe(200);
+		const jsonLogout: any = await resLogout.json();
+		expect(jsonLogout.ok).toBe(true);
 	});
 });

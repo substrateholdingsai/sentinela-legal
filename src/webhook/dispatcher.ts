@@ -3,7 +3,7 @@ import { listSubscribers, logDelivery } from "../lib/db";
 import { generateId, hmacSha256Hex } from "../lib/crypto";
 
 export async function dispatchEvent(env: Env, event: RegulatoryEvent): Promise<void> {
-  const subs = await listSubscribers(env.DB, true);
+  const subs = await listSubscribers(env.DB, undefined, true);
   for (const sub of subs) {
     if (!sub.channels.includes(event.channel as any)) continue;
     if (!sub.webhook_url) continue;

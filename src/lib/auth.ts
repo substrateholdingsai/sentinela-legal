@@ -1,6 +1,6 @@
 import type { Context, Next } from "hono";
 
-export async function requireApiKey(c: Context<{ Bindings: Env }>, next: Next) {
+export async function requireApiKey(c: Context<{ Bindings: Env; Variables: { tenantId: string } }>, next: Next) {
   const adminKey = c.env.ADMIN_API_KEY ?? c.env.ADMIN_KEY ?? "dev-admin-key";
   if (!c.env.ADMIN_API_KEY && !c.env.ADMIN_KEY) {
     console.warn("[AUTH WARNING] ADMIN_API_KEY is not configured in environment. Using fallback 'dev-admin-key'.");
@@ -14,11 +14,14 @@ export async function requireApiKey(c: Context<{ Bindings: Env }>, next: Next) {
     return c.json({ error: "Unauthorized: Invalid or missing API key" }, 401);
   }
 
-  // Rate limit per key+ip via KV (60 req/min)
+  const tenantId = c.req.header("x-tenant-id") || c.req.query("tenant_id") || "default";
+  c.set("tenantId", tenantId);
+
+  // Rate limit per tenant+key+ip via KV (60 req/min)
   if (c.env.KV) {
     try {
       const ip = c.req.header("cf-connecting-ip") || "unknown";
-      const rlKey = `rl:${token.slice(0, 8)}:${ip}`;
+      const rlKey = `rl:${tenantId}:${token.slice(0, 8)}:${ip}`;
       const now = Math.floor(Date.now() / 1000);
       const windowSec = 60;
       const limit = 60;
