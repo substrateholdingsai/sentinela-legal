@@ -146,6 +146,14 @@ El diff **reutiliza la gramática de severidad**: lo derogado mata tu cumplimien
 .diff--derogado .diff__text{ text-decoration:line-through; opacity:.6; }
 ```
 
+### 4.4 · DOF Feed Widget
+La landing muestra hasta cinco publicaciones recientes del RSS oficial del DOF.
+Usa `bg-surface` para el panel, `bg-canvas` para filas y metadatos en `font-mono`;
+los títulos y extractos usan `font-ui` con los tokens de texto existentes. Cada
+fila enlaza directamente al dominio oficial y el pie muestra la hora de consulta
+en CDMX. La indisponibilidad del feed se comunica explícitamente, sin presentar
+datos guardados como publicaciones recién actualizadas.
+
 ## 5 · Metáfora de Operación (vocabulario del tenant)
 
 | Concepto genérico | Vocabulario Sentinela |

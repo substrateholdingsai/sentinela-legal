@@ -4,7 +4,7 @@ import {
 	waitOnExecutionContext,
 	SELF,
 } from "cloudflare:test";
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, vi } from "vitest";
 import worker from "../src/index";
 import { generateId, hmacSha256Hex, sha256Hex } from "../src/lib/crypto";
 import { classifyChannel, parseRssItems } from "../src/ingestors/keywords";
@@ -12,6 +12,7 @@ import { ingestDof } from "../src/ingestors/dof";
 import { ingestCondusef } from "../src/ingestors/condusef";
 import { ingestCnbv } from "../src/ingestors/cnbv";
 import { ingestBanxico } from "../src/ingestors/banxico";
+import { parseDofFeed } from "../src/ingestors/dof-feed";
 
 const IncomingRequest = Request<unknown, IncomingRequestCfProperties>;
 
@@ -40,7 +41,7 @@ describe("Sentinela worker", () => {
 		expect(response.status).toBe(200);
 	});
 
-	it("serves public 3D landing page when Accept includes text/html or at /landing", async () => {
+	it("serves the public DOF landing widget when Accept includes text/html or at /landing", async () => {
 		const request = new IncomingRequest("http://example.com/", {
 			headers: { Accept: "text/html,application/xhtml+xml" },
 		});
@@ -51,8 +52,54 @@ describe("Sentinela worker", () => {
 		expect(response.headers.get("content-type")).toContain("text/html");
 		const html = await response.text();
 		expect(html).toContain("pavel@arksystems.site");
-		expect(html).toContain("sentinela-3d-canvas");
+		expect(html).toContain("dof-feed-list");
+		expect(html).not.toContain("<canvas");
 		expect(html).toContain("SENTINELA");
+	});
+
+	it("serves recent DOF feed items and caches the result briefly", async () => {
+		const cacheKey = "public:dof:latest:v1";
+		await env.KV.delete(cacheKey);
+		const mockFetch = vi.fn(async () => new Response(`
+			<rss><channel><item>
+				<title><![CDATA[Acuerdo del DOF &amp; actualización]]></title>
+				<link>https://dof.gob.mx/nota_detalle.php?codigo=123</link>
+				<description><![CDATA[Publicación oficial reciente.]]></description>
+				<pubDate>Tue, 27 Oct 2026 12:00:00 GMT</pubDate>
+			</item></channel></rss>
+		`, { status: 200 }));
+		vi.stubGlobal("fetch", mockFetch);
+
+		try {
+			const first = await worker.fetch(new IncomingRequest("http://example.com/api/public/dof/latest"), env, createExecutionContext());
+			expect(first.status).toBe(200);
+			expect(first.headers.get("Cache-Control")).toContain("max-age=300");
+			const payload = await first.json() as { items: Array<{ title: string }>; updatedAt: string };
+			expect(payload.items[0].title).toBe("Acuerdo del DOF & actualización");
+			expect(payload.items).toHaveLength(1);
+			expect(payload.updatedAt).toBeTruthy();
+
+			const second = await worker.fetch(new IncomingRequest("http://example.com/api/public/dof/latest"), env, createExecutionContext());
+			expect(second.status).toBe(200);
+			expect(mockFetch).toHaveBeenCalledTimes(1);
+		} finally {
+			vi.unstubAllGlobals();
+			await env.KV.delete(cacheKey);
+		}
+	});
+
+	it("returns an explicit error when the official DOF feed is unavailable", async () => {
+		const cacheKey = "public:dof:latest:v1";
+		await env.KV.delete(cacheKey);
+		vi.stubGlobal("fetch", vi.fn(async () => new Response("Unavailable", { status: 503 })));
+
+		try {
+			const response = await worker.fetch(new IncomingRequest("http://example.com/api/public/dof/latest"), env, createExecutionContext());
+			expect(response.status).toBe(502);
+			expect(await response.json()).toMatchObject({ error: expect.any(String) });
+		} finally {
+			vi.unstubAllGlobals();
+		}
 	});
 
 	it("rejects unauthorized access to /api/v1/run", async () => {
@@ -176,6 +223,31 @@ describe("Unit tests: Keywords and Classification", () => {
 });
 
 describe("Unit tests: DOF Ingestor", () => {
+	it("parses official recent DOF feed items and rejects off-domain links", () => {
+		const items = parseDofFeed(`
+			<rss><channel>
+				<item>
+					<title><![CDATA[Acuerdo &amp; lineamientos]]></title>
+					<link>https://dof.gob.mx/nota_detalle.php?codigo=123</link>
+					<description><![CDATA[<p>Texto oficial &amp; resumen</p>]]></description>
+					<pubDate>Tue, 27 Oct 2026 12:00:00 GMT</pubDate>
+				</item>
+				<item>
+					<title>Noticia externa</title>
+					<link>https://example.com/noticia</link>
+				</item>
+			</channel></rss>
+		`);
+
+		expect(items).toHaveLength(1);
+		expect(items[0]).toMatchObject({
+			title: "Acuerdo & lineamientos",
+			url: "https://dof.gob.mx/nota_detalle.php?codigo=123",
+			summary: "Texto oficial & resumen",
+			publishedAt: "2026-10-27T12:00:00.000Z",
+		});
+	});
+
 	it("handles mock fetch response and parses items", async () => {
 		const mockXml = `
 			<rss><channel>

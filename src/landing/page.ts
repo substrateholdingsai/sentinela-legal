@@ -292,7 +292,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
     }
 
     /* ==========================================================================
-       HERO SECTION · 3D SENTINELA CORE + PROPUESTA DE VALOR
+       HERO SECTION · DOF FEED + PROPUESTA DE VALOR
        ========================================================================== */
     .hero {
       padding: 56px 0 64px;
@@ -374,8 +374,8 @@ export const LANDING_HTML = `<!DOCTYPE html>
       margin-top: 4px;
     }
 
-    /* 3D Viewport Frame (NOC Radar Console) */
-    .viewport-3d {
+    /* DOF Feed Widget */
+    .dof-widget {
       position: relative;
       background: var(--bg-surface);
       border: 1px solid var(--border-line);
@@ -387,8 +387,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
       box-shadow: 0 20px 40px -15px rgba(0,0,0,0.5);
     }
 
-    /* Esquinas de mira táctica */
-    .viewport-3d::before, .viewport-3d::after {
+    .dof-widget::before, .dof-widget::after {
       content: "";
       position: absolute;
       width: 18px;
@@ -398,18 +397,18 @@ export const LANDING_HTML = `<!DOCTYPE html>
       pointer-events: none;
       z-index: 10;
     }
-    .viewport-3d::before {
+    .dof-widget::before {
       top: 10px;
       left: 10px;
       border-width: 2px 0 0 2px;
     }
-    .viewport-3d::after {
+    .dof-widget::after {
       bottom: 10px;
       right: 10px;
       border-width: 0 2px 2px 0;
     }
 
-    .viewport-3d__topbar {
+    .dof-feed__topbar {
       display: flex;
       align-items: center;
       justify-content: space-between;
@@ -421,129 +420,103 @@ export const LANDING_HTML = `<!DOCTYPE html>
       z-index: 5;
     }
 
-    .viewport-3d__canvas-wrap {
-      position: relative;
-      flex: 1 1 auto;
-      width: 100%;
-      height: 380px;
-      min-height: 360px;
-      cursor: grab;
-      background: radial-gradient(circle at 50% 50%, rgba(22, 32, 58, 0.75) 0%, rgba(7, 10, 17, 0.98) 85%);
-      overflow: hidden;
+    .dof-feed__heading {
+      margin: 0;
+      color: var(--text-1);
+      font: 500 11px var(--font-mono);
     }
 
-    .viewport-3d__canvas-wrap:active {
-      cursor: grabbing;
+    .dof-feed__status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font: 400 11px var(--font-mono);
+      color: var(--text-2);
     }
 
-    #sentinela-3d-canvas {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100% !important;
-      height: 100% !important;
-      display: block;
-      z-index: 1;
+    .dof-feed__status-dot {
+      width: 7px;
+      height: 7px;
+      flex: 0 0 7px;
+      border-radius: 50%;
+      background: var(--signal);
     }
 
-    /* HUD Flotante sobre el 3D */
-    .hud-overlay {
-      position: absolute;
-      inset: 0;
-      pointer-events: none;
-      padding: 16px;
+    .dof-feed__list {
+      display: flex;
+      flex: 1;
+      flex-direction: column;
+      gap: 8px;
+      min-height: 0;
+      overflow-y: auto;
+      padding: 14px 14px 10px;
+    }
+
+    .dof-feed__item {
       display: flex;
       flex-direction: column;
-      justify-content: space-between;
-      z-index: 4;
-    }
-
-    .hud-telemetry {
-      display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
-      gap: 8px;
-    }
-
-    .hud-tag {
-      background: rgba(7, 10, 17, 0.88);
-      border: 1px solid var(--border-line);
-      border-radius: 6px;
-      padding: 6px 10px;
-      font: 400 11px/1.4 var(--font-mono);
-      color: var(--text-2);
-      backdrop-filter: blur(8px);
-    }
-
-    .hud-live-alert {
-      background: rgba(15, 23, 42, 0.92);
-      border: 1px solid var(--border-strong);
-      border-left: 3px solid var(--sev-critical);
-      border-radius: 6px;
-      padding: 10px 12px;
-      max-width: 100%;
-      backdrop-filter: blur(8px);
-      transition: border-left-color 0.25s ease;
-    }
-
-    .hud-live-alert__head {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 4px;
-    }
-
-    .hud-live-alert__title {
-      font: 600 13px/1.3 var(--font-ui);
-      color: #F8FAFC;
-    }
-
-    .hud-live-alert__meta {
-      font: 400 11px var(--font-mono);
-      color: #94A3B8;
-      margin-top: 3px;
-    }
-
-    .viewport-3d__controls {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
+      gap: 5px;
       padding: 10px 12px;
       background: var(--bg-canvas);
-      border-top: 1px solid var(--border-line);
-      z-index: 5;
-    }
-
-    .sim-btn {
-      flex: 1;
-      min-width: 110px;
-      padding: 7px 8px;
-      border-radius: 6px;
       border: 1px solid var(--border-line);
-      background: var(--bg-surface);
-      color: var(--text-2);
-      font: 500 10.5px var(--font-mono);
-      letter-spacing: 0.05em;
-      text-transform: uppercase;
-      cursor: pointer;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      gap: 6px;
-      transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+      border-radius: 6px;
+      text-decoration: none;
+      transition: background 0.15s ease, border-color 0.15s ease;
     }
 
-    .sim-btn:hover, .sim-btn.active {
+    .dof-feed__item:hover {
       background: var(--bg-surface-2);
-      color: var(--text-1);
       border-color: var(--border-strong);
     }
 
-    .sim-dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 50%;
+    .dof-feed__item-date {
+      font: 400 10px var(--font-mono);
+      color: var(--text-3);
+    }
+
+    .dof-feed__item-title {
+      font: 600 13px/1.35 var(--font-ui);
+      letter-spacing: -0.01em;
+      color: var(--text-1);
+    }
+
+    .dof-feed__item-summary {
+      display: -webkit-box;
+      overflow: hidden;
+      color: var(--text-2);
+      font: 400 12px/1.45 var(--font-ui);
+      -webkit-box-orient: vertical;
+      -webkit-line-clamp: 2;
+    }
+
+    .dof-feed__message {
+      margin: auto;
+      padding: 24px;
+      color: var(--text-2);
+      font: 400 13px/1.5 var(--font-ui);
+      text-align: center;
+    }
+
+    .dof-feed__footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      padding: 10px 14px;
+      border-top: 1px solid var(--border-line);
+      background: var(--bg-canvas);
+      font: 400 10px var(--font-mono);
+      color: var(--text-3);
+    }
+
+    .dof-feed__all {
+      color: var(--text-1);
+      text-decoration: none;
+      white-space: nowrap;
+    }
+
+    .dof-feed__all:hover {
+      text-decoration: underline;
     }
 
     /* ==========================================================================
@@ -1076,6 +1049,18 @@ export const LANDING_HTML = `<!DOCTYPE html>
       .channels-grid, .hero__metrics, .channel-checks {
         grid-template-columns: 1fr;
       }
+      .dof-widget {
+        height: 480px;
+      }
+      .dof-feed__topbar {
+        gap: 8px;
+        align-items: flex-start;
+        flex-direction: column;
+      }
+      .dof-feed__footer {
+        align-items: flex-start;
+        flex-direction: column;
+      }
     }
   </style>
 </head>
@@ -1124,7 +1109,7 @@ export const LANDING_HTML = `<!DOCTYPE html>
   </header>
 
   <!-- ========================================================================
-       2. HERO SECTION + MOTOR 3D INTERACTIVO SENTINELA
+       2. HERO SECTION + MONITOR DE PUBLICACIONES DEL DOF
        ======================================================================== -->
   <section class="hero">
     <div class="container hero__grid">
@@ -1166,59 +1151,19 @@ export const LANDING_HTML = `<!DOCTYPE html>
         </div>
       </div>
 
-      <!-- VISOR 3D INTERACTIVO (OJO DE LA LEY / PRISMA SENTINELA) -->
-      <div class="viewport-3d" aria-label="Simulador 3D del núcleo regulatorio Sentinela">
-        <div class="viewport-3d__topbar">
-          <span>CORE 3D · PRISMA SENTINELA v1.0</span>
-          <span id="hud-coords">AZIMUTH: 0.0° · FREQ: 60Hz</span>
+      <section class="dof-widget" aria-labelledby="dof-feed-title">
+        <div class="dof-feed__topbar">
+          <h2 class="dof-feed__heading" id="dof-feed-title">PUBLICACIONES RECIENTES · DOF</h2>
+          <span class="dof-feed__status"><span class="dof-feed__status-dot" aria-hidden="true"></span>FUENTE OFICIAL</span>
         </div>
-
-        <div class="viewport-3d__canvas-wrap" id="canvas-container">
-          <canvas id="sentinela-3d-canvas"></canvas>
-
-          <div class="hud-overlay">
-            <div class="hud-telemetry">
-              <div class="hud-tag">
-                <div>FUENTES: <strong>DOF · SAT · CNBV · CONDUSEF</strong></div>
-                <div id="hud-mode-label">ESTADO: ESCANEO MULTICANAL ACTIVO</div>
-              </div>
-              <span class="pill pill--active pill--critical sev-critical" id="hud-sev-pill">CRITICAL</span>
-            </div>
-
-            <div class="hud-live-alert" id="hud-alert-box">
-              <div class="hud-live-alert__head">
-                <span class="channel-badge ch-cobranza" id="hud-channel-badge">COBRANZA · CONDUSEF</span>
-                <span style="font: 400 11px var(--font-mono); color: #94A3B8;" id="hud-folio">DOF-2026-X891</span>
-              </div>
-              <div class="hud-live-alert__title" id="hud-title">
-                Reforma al Art. 284 Bis CPF y Disposiciones REDECO: Ventana Horaria de Cobranza
-              </div>
-              <div class="hud-live-alert__meta" id="hud-meta">
-                ENTRADA EN VIGOR: 2026-11-01 · ACCIÓN: AJUSTAR MOTOR DE ENVÍOS A 08:00–20:00 HRS
-              </div>
-            </div>
-          </div>
+        <div class="dof-feed__list" id="dof-feed-list" aria-live="polite" aria-busy="true">
+          <p class="dof-feed__message">Consultando las publicaciones del Diario Oficial de la Federación…</p>
         </div>
-
-        <div class="viewport-3d__controls" role="group" aria-label="Simular impactos normativos en el núcleo 3D">
-          <button type="button" class="sim-btn active" data-sim="critical">
-            <span class="sim-dot" style="background:#E11D48"></span>
-            CP 284 Bis (Critical)
-          </button>
-          <button type="button" class="sim-btn" data-sim="high">
-            <span class="sim-dot" style="background:#F97316"></span>
-            RMF SAT (High)
-          </button>
-          <button type="button" class="sim-btn" data-sim="medium">
-            <span class="sim-dot" style="background:#06B6D4"></span>
-            Circular CNBV (Med)
-          </button>
-          <button type="button" class="sim-btn" data-sim="low">
-            <span class="sim-dot" style="background:#64748B"></span>
-            Radar Normal
-          </button>
+        <div class="dof-feed__footer">
+          <span id="dof-feed-updated">Consulta en curso</span>
+          <a class="dof-feed__all" href="https://dof.gob.mx/" target="_blank" rel="noopener noreferrer">VER TODAS EN DOF ↗</a>
         </div>
-      </div>
+      </section>
     </div>
   </section>
 
@@ -1850,8 +1795,89 @@ export const LANDING_HTML = `<!DOCTYPE html>
     })();
   </script>
 
+  <script>
+    (function () {
+      var list = document.getElementById('dof-feed-list');
+      var updated = document.getElementById('dof-feed-updated');
+      if (!list || !updated) return;
+
+      function showMessage(message) {
+        list.textContent = '';
+        var paragraph = document.createElement('p');
+        paragraph.className = 'dof-feed__message';
+        paragraph.textContent = message;
+        list.appendChild(paragraph);
+        list.setAttribute('aria-busy', 'false');
+      }
+
+      function formatDate(value, options) {
+        if (!value) return 'Fecha no disponible';
+        var date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'Fecha no disponible';
+        return new Intl.DateTimeFormat('es-MX', options).format(date);
+      }
+
+      fetch('/api/public/dof/latest')
+        .then(function (response) {
+          if (!response.ok) throw new Error('DOF feed request failed: ' + response.status);
+          return response.json();
+        })
+        .then(function (payload) {
+          list.textContent = '';
+          if (!Array.isArray(payload.items) || payload.items.length === 0) {
+            showMessage('No hay publicaciones disponibles en el feed del DOF.');
+          } else {
+            payload.items.forEach(function (item) {
+              var link = document.createElement('a');
+              link.className = 'dof-feed__item';
+              link.href = item.url;
+              link.target = '_blank';
+              link.rel = 'noopener noreferrer';
+
+              var date = document.createElement('span');
+              date.className = 'dof-feed__item-date';
+              date.textContent = 'DOF · ' + formatDate(item.publishedAt, {
+                day: '2-digit',
+                month: 'short',
+                year: 'numeric',
+                timeZone: 'America/Mexico_City'
+              });
+              link.appendChild(date);
+
+              var title = document.createElement('span');
+              title.className = 'dof-feed__item-title';
+              title.textContent = item.title;
+              link.appendChild(title);
+
+              if (item.summary) {
+                var summary = document.createElement('span');
+                summary.className = 'dof-feed__item-summary';
+                summary.textContent = item.summary;
+                link.appendChild(summary);
+              }
+              list.appendChild(link);
+            });
+            list.setAttribute('aria-busy', 'false');
+          }
+          updated.textContent = 'ACTUALIZADO · ' + formatDate(payload.updatedAt, {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            timeZone: 'America/Mexico_City'
+          }) + ' CDMX';
+        })
+        .catch(function (error) {
+          console.error('[Sentinela DOF] No se pudieron cargar las publicaciones.', error);
+          showMessage('No fue posible consultar el DOF. Intenta de nuevo más tarde.');
+          updated.textContent = 'FUENTE TEMPORALMENTE NO DISPONIBLE';
+        });
+    })();
+  </script>
+
   <!-- ========================================================================
-       SCRIPT 3D CON MULTI-CDN AUTOMÁTICO Y FALLBACK GARANTIZADO AL 100%
+       RENDERIZADOR 3D DESACTIVADO; CONSERVADO TEMPORALMENTE PARA COMPATIBILIDAD
        ======================================================================== -->
   <script>
     (function () {

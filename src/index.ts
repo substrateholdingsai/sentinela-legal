@@ -4,6 +4,8 @@ import { runPipeline } from "./pipeline";
 import { requireApiKey } from "./lib/auth";
 import { sendCode, verifyCode, issueJwt, verifyJwt, createRefresh, rotateRefresh, revokeJwt } from "./lib/auth-sovereign";
 import { LANDING_HTML } from "./landing/page";
+import { DOF_RSS_URL } from "./ingestors/dof";
+import { parseDofFeed } from "./ingestors/dof-feed";
 
 const app = new Hono<{ Bindings: Env; Variables: { tenantId: string } }>();
 
@@ -19,6 +21,40 @@ app.get("/", (c) => {
 app.get("/landing", (c) => c.html(LANDING_HTML));
 
 app.get("/health", (c) => c.json({ name: "sentinela", status: "ok" }));
+
+app.get("/api/public/dof/latest", async (c) => {
+  const cacheKey = "public:dof:latest:v1";
+  const cached = await c.env.KV.get(cacheKey);
+  if (cached) {
+    try {
+      const payload = JSON.parse(cached);
+      if (Array.isArray(payload.items) && typeof payload.updatedAt === "string") {
+        return c.json(payload, 200, { "Cache-Control": "public, max-age=300" });
+      }
+      console.warn("DOF feed cache contained an unexpected payload");
+    } catch (error) {
+      console.warn("Unable to parse cached DOF feed", error);
+    }
+  }
+
+  let xml: string;
+  try {
+    const response = await fetch(DOF_RSS_URL, { headers: { "User-Agent": "Sentinela/1.0" } });
+    if (!response.ok) {
+      console.error(`The official DOF feed returned HTTP ${response.status}`);
+      return c.json({ error: "El feed oficial del DOF no está disponible en este momento." }, 502);
+    }
+    xml = await response.text();
+  } catch (error) {
+    console.error("Unable to fetch the official DOF feed", error);
+    return c.json({ error: "No fue posible consultar el feed oficial del DOF." }, 502);
+  }
+
+  const items = parseDofFeed(xml).slice(0, 5);
+  const payload = { items, updatedAt: new Date().toISOString() };
+  await c.env.KV.put(cacheKey, JSON.stringify(payload), { expirationTtl: 300 });
+  return c.json(payload, 200, { "Cache-Control": "public, max-age=300" });
+});
 
 app.use("/api/v1/*", requireApiKey);
 
