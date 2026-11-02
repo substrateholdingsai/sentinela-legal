@@ -31,16 +31,19 @@ export async function getEventBySourceId(db: D1Database, sourceId: string): Prom
   return rowToEvent(row);
 }
 
-export async function listEvents(db: D1Database, opts: { channel?: string; from?: string; to?: string; limit?: number } = {}): Promise<RegulatoryEvent[]> {
+export async function listEvents(db: D1Database, opts: { channel?: string; from?: string; to?: string; limit?: number; offset?: number } = {}): Promise<RegulatoryEvent[]> {
   const conds: string[] = [];
   const binds: any[] = [];
   if (opts.channel) { conds.push("channel = ?"); binds.push(opts.channel); }
   if (opts.from) { conds.push("created_at >= ?"); binds.push(opts.from); }
   if (opts.to) { conds.push("created_at <= ?"); binds.push(opts.to); }
   const where = conds.length ? `WHERE ${conds.join(" AND ")}` : "";
-  const limit = Math.min(Math.max(opts.limit ?? 50, 1), 200);
-  const q = `SELECT * FROM regulatory_events ${where} ORDER BY created_at DESC LIMIT ?`;
-  binds.push(limit);
+  const rawLimit = opts.limit;
+  const limit = Number.isInteger(rawLimit) ? Math.min(Math.max(rawLimit as number, 1), 200) : 50;
+  const rawOffset = opts.offset;
+  const offset = Number.isInteger(rawOffset) && (rawOffset as number) >= 0 ? (rawOffset as number) : 0;
+  const q = `SELECT * FROM regulatory_events ${where} ORDER BY created_at DESC LIMIT ? OFFSET ?`;
+  binds.push(limit, offset);
   const res = await db.prepare(q).bind(...binds).all<any>();
   return (res.results ?? []).map(rowToEvent);
 }

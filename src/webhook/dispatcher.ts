@@ -4,6 +4,7 @@ import { generateId, hmacSha256Hex } from "../lib/crypto";
 
 const MAX_DELIVERY_ATTEMPTS = 3;
 const INITIAL_BACKOFF_MS = 100;
+const DISPATCH_TIMEOUT_MS = 10000;
 
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,11 +18,34 @@ function backoffDelay(attempt: number): number {
   return INITIAL_BACKOFF_MS * Math.pow(2, Math.max(0, attempt - 1));
 }
 
+function isSafeUrl(raw: string): boolean {
+  let url: URL;
+  try { url = new URL(raw); } catch { return false; }
+  if (url.protocol !== "https:" && url.protocol !== "http:") return false;
+  const host = url.hostname.toLowerCase();
+  if (!host || host === "localhost" || host.endsWith(".localhost")) return false;
+  if (host === "127.0.0.1" || host === "::1" || host === "0.0.0.0") return false;
+  if (host === "169.254.169.254" || host === "metadata.google.internal") return false;
+  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(host)) return false;
+  return true;
+}
+
+async function fetchWithTimeout(url: string, init: RequestInit, ms: number): Promise<Response> {
+  const controller = new AbortController();
+  const t = setTimeout(() => controller.abort(), ms);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal, redirect: "error" });
+  } finally {
+    clearTimeout(t);
+  }
+}
+
 export async function dispatchEvent(env: Env, event: RegulatoryEvent): Promise<void> {
   const subs = await listSubscribers(env.DB, undefined, true);
   for (const sub of subs) {
     if (!sub.channels.includes(event.channel as any)) continue;
     if (!sub.webhook_url) continue;
+    if (!isSafeUrl(sub.webhook_url)) continue;
     const payload = {
       event: "regulatory.update_detected",
       timestamp: new Date().toISOString(),
@@ -46,14 +70,14 @@ export async function dispatchEvent(env: Env, event: RegulatoryEvent): Promise<v
     for (let attempt = 1; attempt <= MAX_DELIVERY_ATTEMPTS; attempt++) {
       try {
         const signature = sub.webhook_secret ? await hmacSha256Hex(sub.webhook_secret, body) : "";
-        const res = await fetch(sub.webhook_url, {
+        const res = await fetchWithTimeout(sub.webhook_url, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
             ...(signature ? { "X-Sentinela-Signature": `sha256=${signature}` } : {}),
           },
           body,
-        });
+        }, DISPATCH_TIMEOUT_MS);
         statusCode = res.status;
         responseBody = (await res.text()).slice(0, 2000);
         if (res.ok || !isRetryableStatus(statusCode)) break;

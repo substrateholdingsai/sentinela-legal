@@ -41,6 +41,19 @@ Módulos:
 - Pipeline: concurrencia 3 (`runPool`), tope 25 items/ejecución, cache IA por source_id (30 días), timeout 30s por item y 15s por dispatch.
 - Secretos gestionados vía `wrangler secret` (`ADMIN_API_KEY`, `RESEND_API_KEY`, `JWT_SECRET`).
 
+### Auditoría de Seguridad (v0.3.0)
+- Comparación de API key en tiempo constante; validación de `tenant_id` (formato).
+- Rate limiting KV reutilizable aplicado a `/api/v1/*`, `/auth/*` y `/api/public/dof/latest` (límites por IP/email + IP global).
+- Códigos de verificación generados con `crypto.getRandomValues` (6 dígitos); validación de email y código.
+- Tokens de refresh almacenados hasheados (SHA-256); rotación y revocación preservadas.
+- JWT con verificación de algoritmo/cabecera (`alg: HS256`, `typ: JWT`) y verificación HMAC en tiempo constante.
+- Validación de entrada en `/api/v1/subscribers` (nombre, email, canales permitidos, `webhook_url` seguro, `webhook_secret`).
+- Protección SSRF en `webhook_url` (bloqueo de localhost, IPs privadas, metadata) y en dispatcher (`redirect: error`, timeout, re-validación).
+- Ocultamiento de `webhook_secret` en listados de suscriptores (solo se devuelve al crear).
+- Cabeceras de seguridad (nosniff, frame-options, referrer-policy, permissions-policy) y límite de tamaño de payload (64 KB).
+- Validación de parámetros en `/api/v1/events` (canal, limit entero 1-200) y `listEvents` endurecido contra NaN.
+- Manejo seguro de JSON inválido (400 en lugar de 500).
+
 ## 4. Estado Actual
 
 Completado:
@@ -68,6 +81,8 @@ Completado:
   - Raster: 11 PNGs/ICOs en `public/assets/seo/` y generador dinámico de alert cards OpenGraph.
 - Landing Page pública B2B (`src/landing/page.ts`) con widget del RSS oficial DOF, conmutador Dark NOC / Light Ejecutivo y captación a `pavel@arksystems.site`.
 - API segura: health público (`/`), subscribers, events, run, auth.
+- Endurecimiento de seguridad (v0.3.0): rate limiting, validación de entrada, protección SSRF, cabeceras de seguridad, JWT/algoritmo y códigos seguros.
+- Consumo eficiente para workers internos: paginación por `offset` y soporte ETag/304 en `/api/v1/events`.
 - Cron scheduled handler.
 - Suite de pruebas unitarias Vitest (28/28 pasando).
 - Repositorio remoto Git configurado.
@@ -115,6 +130,7 @@ Pendiente:
 - [x] Tests unitarios automatizados para endpoints `/auth/*` y los 5 ingestores (25 tests verdes)
 - [ ] Auth por suscriptor (API keys individuales)
 - [x] Reintentos con backoff para entrega de webhooks
+- [x] Auditoría de seguridad y hardening (v0.3.0)
 
 ### Sprint 4 — Integración Arkangel (PENDIENTE)
 - [ ] Endpoint receptor en Arkangel
